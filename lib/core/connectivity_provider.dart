@@ -12,13 +12,9 @@ class ConnectivityStatusNotifier extends StateNotifier<ConnectivityStatus> {
   }
 
   void _init() async {
-    try {
-      // Initial check
-      final result = await Connectivity().checkConnectivity();
-      _updateStatus(result);
-    } catch (e) {
-      state = ConnectivityStatus.isDisconnected;
-    }
+    // Initial check
+    final result = await Connectivity().checkConnectivity();
+    _updateStatus(result);
 
     // Listen to changes
     _subscription = Connectivity().onConnectivityChanged.listen((result) {
@@ -27,6 +23,9 @@ class ConnectivityStatusNotifier extends StateNotifier<ConnectivityStatus> {
   }
 
   void _updateStatus(List<ConnectivityResult> results) {
+    // Debug log to help identify the issue
+    print('Connectivity changed: $results');
+    
     if (results.isEmpty || results.contains(ConnectivityResult.none)) {
       state = ConnectivityStatus.isDisconnected;
     } else {
