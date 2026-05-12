@@ -27,7 +27,7 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
   int _currentIndex = 0;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
-  static const _routes = ['/home', '/profile'];
+  static const _routes = ['/home', '/teams', '/notifications', '/profile'];
 
   @override
   void didChangeDependencies() {
@@ -52,14 +52,24 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
     final unreadCount = ref.watch(unreadCountProvider);
     final popupState = ref.watch(sidePopupProvider);
 
-    // Listen for popup requests (Now only for side drawers like Team Detail/Manage Applicants)
+    // Listen for popup requests
     ref.listen(sidePopupProvider, (previous, next) {
-      if (next.type != SidePopupType.none && next.type != SidePopupType.notifications) {
-        _scaffoldKey.currentState?.openEndDrawer();
-      } else if (next.type == SidePopupType.notifications) {
-        _showNotificationPopup(context);
+      if (next.type != SidePopupType.none) {
+        if (isWide) {
+          // Web: use side drawer
+          if (next.type == SidePopupType.notifications) {
+            _showNotificationPopup(context);
+          } else {
+            _scaffoldKey.currentState?.openEndDrawer();
+          }
+        } else {
+          // Mobile: use full-screen page overlay
+          if (next.type != SidePopupType.notifications) {
+            _showMobileFullScreen(context, next);
+          }
+        }
       } else {
-        if (_scaffoldKey.currentState?.isEndDrawerOpen ?? false) {
+        if (isWide && (_scaffoldKey.currentState?.isEndDrawerOpen ?? false)) {
           Navigator.of(context).pop();
         }
       }
@@ -68,7 +78,50 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
     if (isWide) {
       return _buildDesktopLayout(unreadCount, popupState);
     }
-    return _buildMobileLayout(unreadCount, popupState);
+    return _buildMobileLayout(unreadCount);
+  }
+
+  // ─── MOBILE FULL-SCREEN POPUP ───
+  void _showMobileFullScreen(BuildContext context, SidePopupState state) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (ctx) => Scaffold(
+          appBar: AppBar(
+            backgroundColor: AppColors.primary,
+            foregroundColor: Colors.white,
+            elevation: 0,
+            title: Text(
+              _getMobilePopupTitle(state.type),
+              style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 16),
+            ),
+            centerTitle: true,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
+              onPressed: () {
+                Navigator.pop(ctx);
+                ref.read(sidePopupProvider.notifier).hide();
+              },
+            ),
+          ),
+          body: _getPopupContent(state),
+        ),
+      ),
+    );
+  }
+
+  String _getMobilePopupTitle(SidePopupType type) {
+    switch (type) {
+      case SidePopupType.createTeam:
+        return 'Create new Team';
+      case SidePopupType.teamDetail:
+        return 'Detail Team';
+      case SidePopupType.manageApplicants:
+        return 'Manage Applicants';
+      case SidePopupType.editProfile:
+        return 'Edit Profile';
+      default:
+        return '';
+    }
   }
 
   // ─── DESKTOP LAYOUT ───
@@ -120,8 +173,8 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
                   icon: Icons.person_outline,
                   activeIcon: Icons.person_rounded,
                   label: 'Profile',
-                  isActive: _currentIndex == 1,
-                  onTap: () => _onTap(1),
+                  isActive: _currentIndex == 3,
+                  onTap: () => _onTap(3),
                 ),
                 const Spacer(),
                 IconButton(
@@ -190,31 +243,17 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
   }
 
   // ─── MOBILE LAYOUT ───
-  Widget _buildMobileLayout(int unreadCount, SidePopupState popupState) {
+  Widget _buildMobileLayout(int unreadCount) {
     return Scaffold(
       key: _scaffoldKey,
       backgroundColor: AppColors.background,
-      endDrawer: _buildSidePopup(popupState),
-      onEndDrawerChanged: (isOpen) {
-        if (!isOpen) ref.read(sidePopupProvider.notifier).hide();
-      },
-      appBar: AppBar(
-        title: Text(_currentIndex == 0 ? 'Dashboard' : 'Profile'),
-        centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_outlined),
-            onPressed: () => _showNotificationPopup(context),
-          ),
-        ],
-      ),
       body: widget.child,
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           color: AppColors.surface,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
+              color: Colors.black.withValues(alpha: 0.08),
               blurRadius: 10,
               offset: const Offset(0, -2),
             ),
@@ -234,11 +273,26 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
                   onTap: () => _onTap(0),
                 ),
                 _BottomNavItem(
+                  icon: Icons.groups_outlined,
+                  activeIcon: Icons.groups_rounded,
+                  label: 'Teams',
+                  isActive: _currentIndex == 1,
+                  onTap: () => _onTap(1),
+                ),
+                _BottomNavItem(
+                  icon: Icons.notifications_outlined,
+                  activeIcon: Icons.notifications_rounded,
+                  label: 'Notification',
+                  isActive: _currentIndex == 2,
+                  onTap: () => _onTap(2),
+                  badge: unreadCount,
+                ),
+                _BottomNavItem(
                   icon: Icons.person_outline,
                   activeIcon: Icons.person_rounded,
                   label: 'Profile',
-                  isActive: _currentIndex == 1,
-                  onTap: () => _onTap(1),
+                  isActive: _currentIndex == 3,
+                  onTap: () => _onTap(3),
                 ),
               ],
             ),
@@ -297,6 +351,7 @@ class _BottomNavItem extends StatelessWidget {
   final String label;
   final bool isActive;
   final VoidCallback onTap;
+  final int badge;
 
   const _BottomNavItem({
     required this.icon,
@@ -304,6 +359,7 @@ class _BottomNavItem extends StatelessWidget {
     required this.label,
     required this.isActive,
     required this.onTap,
+    this.badge = 0,
   });
 
   @override
@@ -328,6 +384,24 @@ class _BottomNavItem extends StatelessWidget {
                     size: 24,
                   ),
                 ),
+                if (badge > 0)
+                  Positioned(
+                    right: -6,
+                    top: -4,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                      decoration: BoxDecoration(
+                        color: AppColors.error,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      constraints: const BoxConstraints(minWidth: 16),
+                      child: Text(
+                        '$badge',
+                        style: const TextStyle(fontSize: 9, color: Colors.white, fontWeight: FontWeight.bold),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
               ],
             ),
             const SizedBox(height: 4),

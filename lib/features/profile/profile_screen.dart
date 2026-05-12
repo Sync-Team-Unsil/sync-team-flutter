@@ -13,6 +13,17 @@ class ProfileScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final isWide = MediaQuery.of(context).size.width > 800;
+    return isWide ? _WebProfileScreen() : _MobileProfileScreen();
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// WEB PROFILE (existing layout – untouched)
+// ═══════════════════════════════════════════════════════════
+class _WebProfileScreen extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
     final profileAsync = ref.watch(profileProvider);
     final myTeamsAsync = ref.watch(myTeamsProvider);
 
@@ -22,11 +33,9 @@ class ProfileScreen extends ConsumerWidget {
         data: (p) => SingleChildScrollView(
           child: Column(
             children: [
-              // Banner & Profile Card Stack
               Stack(
                 clipBehavior: Clip.none,
                 children: [
-                  // Blue Gradient Banner
                   Container(
                     height: 231,
                     width: double.infinity,
@@ -40,13 +49,11 @@ class ProfileScreen extends ConsumerWidget {
                       ),
                     ),
                   ),
-                  
-                  // Profile Card Overlay
                   Padding(
                     padding: const EdgeInsets.fromLTRB(64, 116, 64, 0),
                     child: Column(
                       children: [
-                        _buildProfileMainCard(context, ref, p, myTeamsAsync),
+                        _buildWebProfileMainCard(context, ref, p, myTeamsAsync),
                         const SizedBox(height: 24),
                         _buildAboutCard(p),
                         const SizedBox(height: 24),
@@ -82,7 +89,7 @@ class ProfileScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildProfileMainCard(BuildContext context, WidgetRef ref, dynamic p, AsyncValue<List<Team>> myTeamsAsync) {
+  Widget _buildWebProfileMainCard(BuildContext context, WidgetRef ref, dynamic p, AsyncValue<List<Team>> myTeamsAsync) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(32),
@@ -90,11 +97,7 @@ class ProfileScreen extends ConsumerWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 20,
-            offset: const Offset(0, 4),
-          ),
+          BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 20, offset: const Offset(0, 4)),
         ],
       ),
       child: Column(
@@ -108,23 +111,14 @@ class ProfileScreen extends ConsumerWidget {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   border: Border.all(color: Colors.white, width: 4),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.1),
-                      blurRadius: 10,
-                    )
-                  ],
+                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 10)],
                 ),
                 child: CircleAvatar(
                   radius: 60,
                   backgroundColor: AppColors.primary.withValues(alpha: 0.1),
                   child: Text(
                     p?.initials ?? 'U',
-                    style: GoogleFonts.poppins(
-                      fontSize: 40, 
-                      fontWeight: FontWeight.bold, 
-                      color: AppColors.primary
-                    ),
+                    style: GoogleFonts.poppins(fontSize: 40, fontWeight: FontWeight.bold, color: AppColors.primary),
                   ),
                 ),
               ),
@@ -133,30 +127,16 @@ class ProfileScreen extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      p?.displayName ?? 'User',
-                      style: GoogleFonts.poppins(
-                        fontSize: 24, 
-                        fontWeight: FontWeight.w500, 
-                        color: AppColors.slate700
-                      ),
-                    ),
+                    Text(p?.displayName ?? 'User', style: GoogleFonts.poppins(fontSize: 24, fontWeight: FontWeight.w500, color: AppColors.slate700)),
                     const SizedBox(height: 4),
                     Text(
                       p?.username != null ? '${p.username}@gmail.com' : 'user@gmail.com',
-                      style: GoogleFonts.poppins(
-                        fontSize: 14, 
-                        color: AppColors.slate500
-                      ),
+                      style: GoogleFonts.poppins(fontSize: 14, color: AppColors.slate500),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       p?.username != null ? '@${p.username}' : '@user',
-                      style: GoogleFonts.poppins(
-                        fontSize: 14, 
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.w500,
-                      ),
+                      style: GoogleFonts.poppins(fontSize: 14, color: AppColors.primary, fontWeight: FontWeight.w500),
                     ),
                   ],
                 ),
@@ -178,15 +158,15 @@ class ProfileScreen extends ConsumerWidget {
           const SizedBox(height: 32),
           const Divider(color: Color(0xFFF1F5F9), height: 1),
           const SizedBox(height: 24),
-              Row(
-                children: [
-                  _buildStatItem('teams', '${myTeamsAsync.valueOrNull?.length ?? 0}/2'),
-                  const SizedBox(width: 48),
-                  _buildStatItem('ratings', '5.0'),
-                  const SizedBox(width: 48),
-                  _buildStatItem('role', p?.role ?? 'Back-end Developer'),
-                ],
-              ),
+          Row(
+            children: [
+              _buildStatItem('teams', '${myTeamsAsync.valueOrNull?.length ?? 0}/2'),
+              const SizedBox(width: 48),
+              _buildStatItem('ratings', '5.0'),
+              const SizedBox(width: 48),
+              _buildStatItem('role', p?.role ?? 'Back-end Developer'),
+            ],
+          ),
         ],
       ),
     );
@@ -196,23 +176,9 @@ class ProfileScreen extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          '$label:',
-          style: GoogleFonts.poppins(
-            fontSize: 12, 
-            fontWeight: FontWeight.w500, 
-            color: AppColors.slate500
-          ),
-        ),
+        Text('$label:', style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.slate500)),
         const SizedBox(height: 4),
-        Text(
-          value,
-          style: GoogleFonts.poppins(
-            fontSize: 16, 
-            fontWeight: FontWeight.w500, 
-            color: AppColors.slate700
-          ),
-        ),
+        Text(value, style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w500, color: AppColors.slate700)),
       ],
     );
   }
@@ -221,30 +187,13 @@ class ProfileScreen extends ConsumerWidget {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(33),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-      ),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'About',
-            style: GoogleFonts.poppins(
-              fontSize: 18, 
-              fontWeight: FontWeight.w600, 
-              color: AppColors.slate700
-            ),
-          ),
+          Text('About', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600, color: AppColors.slate700)),
           const SizedBox(height: 16),
-          Text(
-            p?.bio ?? 'No bio yet.',
-            style: GoogleFonts.poppins(
-              fontSize: 14, 
-              color: AppColors.slate500,
-              height: 1.5,
-            ),
-          ),
+          Text(p?.bio ?? 'No bio yet.', style: GoogleFonts.poppins(fontSize: 14, color: AppColors.slate500, height: 1.5)),
         ],
       ),
     );
@@ -253,21 +202,11 @@ class ProfileScreen extends ConsumerWidget {
   Widget _buildSettingsCard(BuildContext context, WidgetRef ref) {
     return Container(
       padding: const EdgeInsets.all(33),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-      ),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Settings',
-            style: GoogleFonts.poppins(
-              fontSize: 18, 
-              fontWeight: FontWeight.w600, 
-              color: AppColors.slate700
-            ),
-          ),
+          Text('Settings', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600, color: AppColors.slate700)),
           const SizedBox(height: 16),
           _buildMenuRow(Icons.shield_outlined, 'Account and Security'),
           _buildMenuRow(Icons.language_outlined, 'Language'),
@@ -281,21 +220,11 @@ class ProfileScreen extends ConsumerWidget {
   Widget _buildSupportCard() {
     return Container(
       padding: const EdgeInsets.all(33),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-      ),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Support',
-            style: GoogleFonts.poppins(
-              fontSize: 18, 
-              fontWeight: FontWeight.w600, 
-              color: AppColors.slate700
-            ),
-          ),
+          Text('Support', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600, color: AppColors.slate700)),
           const SizedBox(height: 16),
           _buildMenuRow(Icons.help_outline_rounded, 'Question'),
         ],
@@ -306,31 +235,19 @@ class ProfileScreen extends ConsumerWidget {
   Widget _buildSystemCard(BuildContext context, WidgetRef ref) {
     return Container(
       padding: const EdgeInsets.all(33),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-      ),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'System',
-            style: GoogleFonts.poppins(
-              fontSize: 18, 
-              fontWeight: FontWeight.w600, 
-              color: AppColors.slate700
-            ),
-          ),
+          Text('System', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600, color: AppColors.slate700)),
           const SizedBox(height: 16),
           _buildMenuRow(
-            Icons.logout_rounded, 
-            'Log Out', 
+            Icons.logout_rounded,
+            'Log Out',
             showArrow: false,
             onTap: () async {
               await ref.read(profileProvider.notifier).signOut();
-              if (context.mounted) {
-                context.go('/auth');
-              }
+              if (context.mounted) context.go('/auth');
             },
           ),
         ],
@@ -347,16 +264,235 @@ class ProfileScreen extends ConsumerWidget {
           children: [
             Icon(icon, size: 24, color: const Color(0xFF6C6F85)),
             const SizedBox(width: 8),
-            Text(
-              label,
-              style: GoogleFonts.poppins(
-                fontSize: 12, 
-                color: const Color(0xFF6C6F85)
-              ),
-            ),
+            Text(label, style: GoogleFonts.poppins(fontSize: 12, color: const Color(0xFF6C6F85))),
             const Spacer(),
-            if (showArrow)
-              const Icon(Icons.chevron_right_rounded, size: 20, color: Color(0xFF6C6F85)),
+            if (showArrow) const Icon(Icons.chevron_right_rounded, size: 20, color: Color(0xFF6C6F85)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// MOBILE PROFILE (Figma 1:2650)
+// ═══════════════════════════════════════════════════════════
+class _MobileProfileScreen extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final profileAsync = ref.watch(profileProvider);
+    final myTeamsAsync = ref.watch(myTeamsProvider);
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8FAFC),
+      body: profileAsync.when(
+        data: (p) => SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ── Gradient Banner + Avatar ──
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Container(
+                    height: 160,
+                    width: double.infinity,
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.bottomRight,
+                        end: Alignment.topLeft,
+                        colors: [Color(0xFF2059B5), Color(0xFF8BA9F5)],
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    left: 20,
+                    bottom: -40,
+                    child: Container(
+                      width: 88,
+                      height: 88,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 4),
+                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 10)],
+                      ),
+                      child: CircleAvatar(
+                        radius: 40,
+                        backgroundColor: AppColors.primary.withValues(alpha: 0.15),
+                        child: Text(
+                          p?.initials ?? 'U',
+                          style: GoogleFonts.poppins(fontSize: 28, fontWeight: FontWeight.bold, color: AppColors.primary),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 50),
+
+              // ── Name, Email, Edit Button ──
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            p?.displayName ?? 'User',
+                            style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.w600, color: AppColors.slate700),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            p?.username != null ? '${p?.username}@gmail.com' : 'user@gmail.com',
+                            style: GoogleFonts.poppins(fontSize: 13, color: AppColors.slate500),
+                          ),
+                        ],
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: () => ref.read(sidePopupProvider.notifier).show(SidePopupType.editProfile),
+                      child: Row(
+                        children: [
+                          Icon(Icons.edit_outlined, size: 16, color: AppColors.primary),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Edit Profile',
+                            style: GoogleFonts.poppins(fontSize: 13, color: AppColors.primary, fontWeight: FontWeight.w600),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              // ── Stats Row ──
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Row(
+                  children: [
+                    _mobileStatItem('teams:', '${myTeamsAsync.valueOrNull?.length ?? 0}/2'),
+                    const SizedBox(width: 32),
+                    _mobileStatItem('ratings:', '5.0'),
+                    const SizedBox(width: 32),
+                    Expanded(child: _mobileStatItem('role', p?.role ?? 'Back-end Developer')),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 24),
+
+              // ── About Section ──
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('About', style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.slate700)),
+                    const SizedBox(height: 8),
+                    Text(
+                      p?.bio ?? 'No bio yet.',
+                      style: GoogleFonts.poppins(fontSize: 14, color: AppColors.slate500, height: 1.5),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 24),
+
+              // ── Settings ──
+              _mobileMenuSection('Settings', [
+                _mobileMenuItem(Icons.shield_outlined, 'Account and Security'),
+                _mobileMenuItem(Icons.language_outlined, 'Language'),
+                _mobileMenuItem(Icons.palette_outlined, 'Theme'),
+                _mobileMenuItem(Icons.notifications_none_outlined, 'Notification'),
+              ]),
+
+              // ── Support ──
+              _mobileMenuSection('Support', [
+                _mobileMenuItem(Icons.help_outline_rounded, 'Question'),
+              ]),
+
+              // ── System ──
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('System', style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.slate700)),
+                    const SizedBox(height: 8),
+                    InkWell(
+                      onTap: () async {
+                        await ref.read(profileProvider.notifier).signOut();
+                        if (context.mounted) context.go('/auth');
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.logout_rounded, size: 22, color: Color(0xFF6C6F85)),
+                            const SizedBox(width: 12),
+                            Text('Log Out', style: GoogleFonts.poppins(fontSize: 14, color: const Color(0xFF6C6F85))),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 32),
+            ],
+          ),
+        ),
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, _) => Center(child: Text('Error: $e')),
+      ),
+    );
+  }
+
+  Widget _mobileStatItem(String label, String value) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.slate500)),
+        const SizedBox(height: 2),
+        Text(value, style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.primary)),
+      ],
+    );
+  }
+
+  Widget _mobileMenuSection(String title, List<Widget> items) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.slate700)),
+          const SizedBox(height: 8),
+          ...items,
+          const SizedBox(height: 16),
+        ],
+      ),
+    );
+  }
+
+  Widget _mobileMenuItem(IconData icon, String label, {VoidCallback? onTap}) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        child: Row(
+          children: [
+            Icon(icon, size: 22, color: const Color(0xFF6C6F85)),
+            const SizedBox(width: 12),
+            Expanded(child: Text(label, style: GoogleFonts.poppins(fontSize: 14, color: const Color(0xFF6C6F85)))),
+            const Icon(Icons.chevron_right_rounded, size: 20, color: Color(0xFF6C6F85)),
           ],
         ),
       ),

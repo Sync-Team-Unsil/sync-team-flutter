@@ -5,11 +5,23 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/theme.dart';
 import '../../core/side_popup_provider.dart';
 import '../../shared/models/team.dart';
+import '../auth/auth_provider.dart';
 import 'teams_provider.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
 
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isWide = MediaQuery.of(context).size.width > 800;
+    return isWide ? _WebDashboard() : _MobileDashboard();
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// WEB DASHBOARD (Existing layout – untouched)
+// ═══════════════════════════════════════════════════════════
+class _WebDashboard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final myTeams = ref.watch(myTeamsProvider);
@@ -34,8 +46,7 @@ class DashboardScreen extends ConsumerWidget {
               const SizedBox(height: 24),
               myTeams.when(
                 data: (teams) {
-                  if (teams.isEmpty) return _EmptyTeamsPlaceholder();
-                  // Max 2 teams as per requirement
+                  if (teams.isEmpty) return _WebEmptyTeamsPlaceholder();
                   final displayTeams = teams.take(2).toList();
                   return Row(
                     children: [
@@ -43,7 +54,7 @@ class DashboardScreen extends ConsumerWidget {
                         Expanded(
                           child: Padding(
                             padding: const EdgeInsets.only(right: 16),
-                            child: _JoinedTeamCard(team: team, userId: userId ?? ''),
+                            child: _WebJoinedTeamCard(team: team, userId: userId ?? ''),
                           ),
                         ),
                       if (displayTeams.length < 2) const Spacer(),
@@ -81,7 +92,7 @@ class DashboardScreen extends ConsumerWidget {
                     : Column(
                         children: teams.map((t) => Padding(
                           padding: const EdgeInsets.only(bottom: 16),
-                          child: _AvailableTeamCard(team: t),
+                          child: _WebAvailableTeamCard(team: t),
                         )).toList(),
                       ),
                 loading: () => const _LoadingPlaceholder(height: 100),
@@ -95,6 +106,352 @@ class DashboardScreen extends ConsumerWidget {
   }
 }
 
+// ═══════════════════════════════════════════════════════════
+// MOBILE DASHBOARD (Figma 1:2039 / 1:2118)
+// ═══════════════════════════════════════════════════════════
+class _MobileDashboard extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final myTeams = ref.watch(myTeamsProvider);
+    final available = ref.watch(availableTeamsProvider);
+    final profileAsync = ref.watch(profileProvider);
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: RefreshIndicator(
+        color: AppColors.primary,
+        onRefresh: () async {
+          ref.invalidate(myTeamsProvider);
+          ref.invalidate(availableTeamsProvider);
+        },
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ── Profile Header Card (Gradient) ──
+              profileAsync.when(
+                data: (p) => _MobileProfileHeader(
+                  profile: p,
+                  teamCount: myTeams.valueOrNull?.length ?? 0,
+                ),
+                loading: () => Container(
+                  height: 180,
+                  decoration: const BoxDecoration(gradient: LinearGradient(colors: [Color(0xFF9E77ED), Color(0xFFB89AFF)])),
+                  child: const Center(child: CircularProgressIndicator(color: Colors.white)),
+                ),
+                error: (_, _) => const SizedBox.shrink(),
+              ),
+
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 24),
+
+                    // ── My Teams Section ──
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('Teams', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600, color: const Color(0xFF344054))),
+                        Text('see all', style: GoogleFonts.poppins(fontSize: 14, color: AppColors.primary, fontWeight: FontWeight.w500)),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    myTeams.when(
+                      data: (teams) {
+                        if (teams.isEmpty) return _MobileEmptyTeams();
+                        return Column(
+                          children: teams.take(2).map((team) => Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: _MobileJoinedTeamCard(team: team, userId: userId ?? ''),
+                          )).toList(),
+                        );
+                      },
+                      loading: () => const _LoadingPlaceholder(height: 120),
+                      error: (e, _) => Text('Error: $e'),
+                    ),
+
+                    const SizedBox(height: 24),
+
+                    // ── Available Teams Section ──
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('List Available Teams', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600, color: const Color(0xFF344054))),
+                        Text('see all', style: GoogleFonts.poppins(fontSize: 14, color: AppColors.primary, fontWeight: FontWeight.w500)),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    available.when(
+                      data: (teams) => teams.isEmpty
+                          ? Center(child: Text('No available teams', style: GoogleFonts.poppins(color: AppColors.textMuted)))
+                          : Column(
+                              children: teams.map((t) => Padding(
+                                padding: const EdgeInsets.only(bottom: 12),
+                                child: _MobileAvailableTeamCard(team: t),
+                              )).toList(),
+                            ),
+                      loading: () => const _LoadingPlaceholder(height: 100),
+                      error: (e, _) => Text('Error: $e'),
+                    ),
+                    const SizedBox(height: 24),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── MOBILE: Profile Header Card (Gradient top) ───
+class _MobileProfileHeader extends StatelessWidget {
+  final dynamic profile;
+  final int teamCount;
+  const _MobileProfileHeader({required this.profile, required this.teamCount});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.fromLTRB(20, MediaQuery.of(context).padding.top + 16, 20, 20),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF9E77ED), Color(0xFF7C5AC7)],
+        ),
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(0),
+          bottomRight: Radius.circular(0),
+        ),
+      ),
+      child: Row(
+        children: [
+          // Avatar
+          CircleAvatar(
+            radius: 30,
+            backgroundColor: Colors.white.withValues(alpha: 0.2),
+            child: Text(
+              profile?.initials ?? 'U',
+              style: GoogleFonts.poppins(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
+            ),
+          ),
+          const SizedBox(width: 16),
+          // Name & Email
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  profile?.displayName ?? 'User',
+                  style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.white),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  profile?.username != null ? '${profile.username}@gmail.com' : 'user@gmail.com',
+                  style: GoogleFonts.poppins(fontSize: 12, color: Colors.white.withValues(alpha: 0.8)),
+                ),
+              ],
+            ),
+          ),
+          // Edit icon
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: IconButton(
+              icon: const Icon(Icons.open_in_new_rounded, color: Colors.white, size: 18),
+              onPressed: () {},
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+
+// ─── MOBILE: Empty Teams ───
+class _MobileEmptyTeams extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF9F5FF),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE9D7FE)),
+      ),
+      child: Column(
+        children: [
+          Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.08),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.chat_bubble_outline_rounded, size: 40, color: AppColors.primary),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            "You aren't currently a member of any team",
+            textAlign: TextAlign.center,
+            style: GoogleFonts.poppins(fontSize: 14, color: const Color(0xFF667085)),
+          ),
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: ElevatedButton(
+              onPressed: () => ref.read(sidePopupProvider.notifier).show(SidePopupType.createTeam),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                elevation: 0,
+              ),
+              child: Text('Create or Join Team', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── MOBILE: Joined Team Card ───
+class _MobileJoinedTeamCard extends ConsumerWidget {
+  final Team team;
+  final String userId;
+  const _MobileJoinedTeamCard({required this.team, required this.userId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isOwner = team.isOwner(userId);
+    final bgColor = isOwner ? const Color(0xFFFFEDD5) : const Color(0xFFDCFCE7);
+    final borderColor = isOwner ? const Color(0xFFFED7AA) : const Color(0xFFBBF7D0);
+    final statusColor = isOwner ? const Color(0xFFF97316) : const Color(0xFF12B76A);
+
+    return GestureDetector(
+      onTap: () => ref.read(sidePopupProvider.notifier).show(SidePopupType.teamDetail, data: team.id),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: borderColor),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    isOwner ? 'Tim ${team.name}' : team.name,
+                    style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w500, color: const Color(0xFF334155)),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                Text('${team.currentMembers}/${team.maxMembers}', style: GoogleFonts.poppins(fontSize: 14, color: statusColor)),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              team.description ?? '',
+              style: GoogleFonts.poppins(fontSize: 13, color: const Color(0xFF64748B)),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _AvatarStack(count: team.currentMembers),
+                Text('ongoing', style: GoogleFonts.poppins(fontSize: 13, color: statusColor, fontWeight: FontWeight.w500)),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── MOBILE: Available Team Card ───
+class _MobileAvailableTeamCard extends ConsumerWidget {
+  final Team team;
+  const _MobileAvailableTeamCard({required this.team});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final daysSince = DateTime.now().difference(team.createdAt).inDays;
+    final timeAgo = daysSince == 0 ? 'Hari ini' : 'Diposting $daysSince Hari yang lalu';
+
+    return GestureDetector(
+      onTap: () => ref.read(sidePopupProvider.notifier).show(SidePopupType.teamDetail, data: team.id),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF9F5FF),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFE9D7FE)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(team.name, style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w500, color: const Color(0xFF334155))),
+                ),
+                Text('${team.currentMembers}/${team.maxMembers}', style: GoogleFonts.poppins(fontSize: 14, color: AppColors.primary)),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              team.description ?? '',
+              style: GoogleFonts.poppins(fontSize: 13, color: const Color(0xFF64748B)),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                if (team.tags.isNotEmpty)
+                  ...team.tags.take(2).map((tag) => Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: Text('# $tag', style: GoogleFonts.poppins(fontSize: 12, color: AppColors.primary)),
+                  )),
+                if (team.tags.length > 2)
+                  Text('${team.tags.length - 2}+', style: GoogleFonts.poppins(fontSize: 12, color: AppColors.primary)),
+                const Spacer(),
+                Text(timeAgo, style: GoogleFonts.poppins(fontSize: 11, color: AppColors.textMuted)),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// SHARED WEB WIDGETS (kept from original)
+// ═══════════════════════════════════════════════════════════
 class _SectionTitle extends StatelessWidget {
   final String title;
   const _SectionTitle({required this.title});
@@ -108,7 +465,7 @@ class _SectionTitle extends StatelessWidget {
   }
 }
 
-class _EmptyTeamsPlaceholder extends ConsumerWidget {
+class _WebEmptyTeamsPlaceholder extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Container(
@@ -163,10 +520,10 @@ class _EmptyTeamsPlaceholder extends ConsumerWidget {
   }
 }
 
-class _JoinedTeamCard extends ConsumerWidget {
+class _WebJoinedTeamCard extends ConsumerWidget {
   final Team team;
   final String userId;
-  const _JoinedTeamCard({required this.team, required this.userId});
+  const _WebJoinedTeamCard({required this.team, required this.userId});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -176,10 +533,7 @@ class _JoinedTeamCard extends ConsumerWidget {
     final statusColor = isOwner ? const Color(0xFFF97316) : const Color(0xFF12B76A);
 
     return InkWell(
-      onTap: () => ref.read(sidePopupProvider.notifier).show(
-        SidePopupType.teamDetail,
-        data: team.id,
-      ),
+      onTap: () => ref.read(sidePopupProvider.notifier).show(SidePopupType.teamDetail, data: team.id),
       child: Container(
         padding: const EdgeInsets.all(16),
         height: 240,
@@ -202,10 +556,7 @@ class _JoinedTeamCard extends ConsumerWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                Text(
-                  '${team.currentMembers}/${team.maxMembers}',
-                  style: GoogleFonts.poppins(fontSize: 14, color: statusColor),
-                ),
+                Text('${team.currentMembers}/${team.maxMembers}', style: GoogleFonts.poppins(fontSize: 14, color: statusColor)),
               ],
             ),
             const SizedBox(height: 16),
@@ -221,12 +572,8 @@ class _JoinedTeamCard extends ConsumerWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // Avatar Stack
                 _AvatarStack(count: team.currentMembers),
-                Text(
-                  'ongoing',
-                  style: GoogleFonts.poppins(fontSize: 14, color: statusColor),
-                ),
+                Text('ongoing', style: GoogleFonts.poppins(fontSize: 14, color: statusColor)),
               ],
             ),
           ],
@@ -236,9 +583,9 @@ class _JoinedTeamCard extends ConsumerWidget {
   }
 }
 
-class _AvailableTeamCard extends ConsumerWidget {
+class _WebAvailableTeamCard extends ConsumerWidget {
   final Team team;
-  const _AvailableTeamCard({required this.team});
+  const _WebAvailableTeamCard({required this.team});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -257,14 +604,8 @@ class _AvailableTeamCard extends ConsumerWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  team.name,
-                  style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w500, color: const Color(0xFF334155)),
-                ),
-                Text(
-                  '${team.currentMembers}/${team.maxMembers}',
-                  style: GoogleFonts.poppins(fontSize: 14, color: AppColors.primary),
-                ),
+                Text(team.name, style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w500, color: const Color(0xFF334155))),
+                Text('${team.currentMembers}/${team.maxMembers}', style: GoogleFonts.poppins(fontSize: 14, color: AppColors.primary)),
               ],
             ),
             const SizedBox(height: 16),
@@ -298,6 +639,9 @@ class _AvailableTeamCard extends ConsumerWidget {
   }
 }
 
+// ═══════════════════════════════════════════════════════════
+// SHARED WIDGETS
+// ═══════════════════════════════════════════════════════════
 class _AvatarStack extends StatelessWidget {
   final int count;
   const _AvatarStack({required this.count});
@@ -306,24 +650,24 @@ class _AvatarStack extends StatelessWidget {
   Widget build(BuildContext context) {
     final displayCount = count > 4 ? 4 : count;
     if (displayCount == 0) return const SizedBox.shrink();
-    
+
     return SizedBox(
-      height: 48,
-      width: (displayCount - 1) * 30.0 + 48,
+      height: 36,
+      width: (displayCount - 1) * 22.0 + 36,
       child: Stack(
         children: List.generate(
           displayCount,
           (index) => Positioned(
-            left: index * 30.0,
+            left: index * 22.0,
             child: Container(
-              width: 48,
-              height: 48,
+              width: 36,
+              height: 36,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(color: Colors.white, width: 2),
                 color: AppColors.inputFill,
               ),
-              child: const Icon(Icons.person, size: 24, color: Colors.grey),
+              child: const Icon(Icons.person, size: 18, color: Colors.grey),
             ),
           ),
         ),

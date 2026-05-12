@@ -43,7 +43,10 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> with 
             ),
             child: SafeArea(
               bottom: false,
-              child: TabBar(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TabBar(
                 controller: _tabController,
                 labelColor: Colors.white,
                 unselectedLabelColor: Colors.white.withValues(alpha: 0.6),
@@ -78,6 +81,8 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> with 
                   const Tab(text: 'All'),
                   const Tab(text: 'Applicants'),
                   const Tab(text: 'Applied'),
+                ],
+              ),
                 ],
               ),
             ),
