@@ -20,6 +20,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   final _confirmCtrl = TextEditingController();
   final _firstNameCtrl = TextEditingController();
   final _lastNameCtrl = TextEditingController();
+  final _roleCtrl = TextEditingController();
+  final _bioCtrl = TextEditingController();
   bool _isLoading = false;
   String? _error;
 
@@ -31,6 +33,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     _confirmCtrl.dispose();
     _firstNameCtrl.dispose();
     _lastNameCtrl.dispose();
+    _roleCtrl.dispose();
+    _bioCtrl.dispose();
     super.dispose();
   }
 
@@ -63,7 +67,15 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
         });
         return;
       }
-      final res = await ref.read(profileProvider.notifier).signUp(email, password, username);
+      final res = await ref.read(profileProvider.notifier).signUp(
+        email: email,
+        password: password,
+        username: username,
+        firstName: _firstNameCtrl.text.trim(),
+        lastName: _lastNameCtrl.text.trim(),
+        role: _roleCtrl.text.trim(),
+        bio: _bioCtrl.text.trim(),
+      );
       if (mounted) {
         setState(() => _isLoading = false);
         if (res != null) {
@@ -251,6 +263,10 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
           const SizedBox(height: 16),
           _buildField('Username', _userCtrl, 'Please input your Username'),
           const SizedBox(height: 16),
+          _buildField('Role', _roleCtrl, 'e.g. Front-end Developer'),
+          const SizedBox(height: 16),
+          _buildField('Bio', _bioCtrl, 'Short description about you', maxLines: 3),
+          const SizedBox(height: 16),
         ],
 
         _buildField(
@@ -305,7 +321,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     );
   }
 
-  Widget _buildField(String label, TextEditingController ctrl, String hint, {TextInputType? type, bool obscure = false}) {
+  Widget _buildField(String label, TextEditingController ctrl, String hint, {TextInputType? type, bool obscure = false, int maxLines = 1}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -322,6 +338,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
           controller: ctrl,
           keyboardType: type,
           obscureText: obscure,
+          maxLines: maxLines,
           style: GoogleFonts.poppins(fontSize: 16, color: AppColors.textPrimary),
           decoration: InputDecoration(
             hintText: hint,

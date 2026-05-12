@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/theme.dart';
@@ -62,9 +61,16 @@ class DashboardScreen extends ConsumerWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   _SectionTitle(title: 'List Available Teams'),
-                  TextButton(
-                    onPressed: () => context.go('/teams'),
-                    child: Text('see all', style: GoogleFonts.poppins(color: AppColors.primary, fontWeight: FontWeight.w500)),
+                  TextButton.icon(
+                    onPressed: () => ref.read(sidePopupProvider.notifier).show(SidePopupType.createTeam),
+                    icon: const Icon(Icons.add, size: 20),
+                    label: Text('Create Team', style: GoogleFonts.poppins(color: AppColors.primary, fontWeight: FontWeight.w600)),
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.primary,
+                      backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
                   ),
                 ],
               ),

@@ -123,7 +123,7 @@ class AppTheme {
           backgroundColor: AppColors.primary,
           foregroundColor: Colors.white,
           elevation: 0,
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 0),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
           textStyle: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w500),
         ),

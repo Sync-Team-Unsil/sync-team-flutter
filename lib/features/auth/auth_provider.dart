@@ -74,14 +74,28 @@ class ProfileNotifier extends StateNotifier<AsyncValue<Profile?>> {
     }
   }
 
-  Future<String?> signUp(String email, String password, String username) async {
+  Future<String?> signUp({
+    required String email, 
+    required String password, 
+    required String username,
+    String? firstName,
+    String? lastName,
+    String? role,
+    String? bio,
+  }) async {
     try {
       await _supabase.auth.signUp(
         email: email,
         password: password,
-        data: {'username': username},
+        data: {
+          'username': username,
+          'first_name': firstName,
+          'last_name': lastName,
+          'role': role,
+          'bio': bio,
+        },
       );
-      // Profile is created via trigger
+      // Profile is created via trigger, which should copy metadata to profiles table
       await loadProfile();
       return null;
     } on AuthException catch (e) {
@@ -101,24 +115,26 @@ class ProfileNotifier extends StateNotifier<AsyncValue<Profile?>> {
     String? firstName,
     String? lastName,
     String? role,
+    String? bio,
     String? avatarUrl,
   }) async {
     final user = _supabase.auth.currentUser;
     if (user == null) return;
 
-    final updates = {
-      'username': ?username,
-      'first_name': ?firstName,
-      'last_name': ?lastName,
-      'role': ?role,
-      'avatar_url': ?avatarUrl,
-    };
+    final updates = <String, dynamic>{};
+    if (username != null) updates['username'] = username;
+    if (firstName != null) updates['first_name'] = firstName;
+    if (lastName != null) updates['last_name'] = lastName;
+    if (role != null) updates['role'] = role;
+    if (bio != null) updates['bio'] = bio;
+    if (avatarUrl != null) updates['avatar_url'] = avatarUrl;
 
     try {
       await _supabase.from('profiles').update(updates).eq('id', user.id);
       await loadProfile();
     } catch (e) {
-      // Handle error
+      debugPrint('Update profile error: $e');
+      rethrow;
     }
   }
 }

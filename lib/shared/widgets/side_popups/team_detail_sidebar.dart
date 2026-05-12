@@ -36,6 +36,41 @@ class TeamDetailSidebar extends ConsumerWidget {
                   'Detail Team',
                   style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
+                const Spacer(),
+                // Reload Button
+                IconButton(
+                  icon: const Icon(Icons.refresh_rounded, color: AppColors.primary),
+                  onPressed: () {
+                    ref.invalidate(teamDetailProvider(teamId));
+                    ref.invalidate(userTeamStatusProvider(teamId));
+                  },
+                  tooltip: 'Reload',
+                ),
+                // Conditional Actions
+                teamAsync.when(
+                  data: (team) {
+                    if (team == null) return const SizedBox.shrink();
+                    final isOwner = team.createdBy == userId;
+                    final isMember = team.members?.any((m) => m.userId == userId && m.status == 'accepted') ?? false;
+
+                    if (isOwner) {
+                      return TextButton.icon(
+                        onPressed: () => _confirmDisband(context, ref),
+                        icon: const Icon(Icons.delete_forever_outlined, size: 18, color: AppColors.error),
+                        label: Text('Disband', style: GoogleFonts.poppins(color: AppColors.error, fontSize: 13, fontWeight: FontWeight.w600)),
+                      );
+                    } else if (isMember) {
+                      return TextButton.icon(
+                        onPressed: () => _confirmQuit(context, ref),
+                        icon: const Icon(Icons.logout_rounded, size: 18, color: AppColors.error),
+                        label: Text('Quit', style: GoogleFonts.poppins(color: AppColors.error, fontSize: 13, fontWeight: FontWeight.w600)),
+                      );
+                    }
+                    return const SizedBox.shrink();
+                  },
+                  loading: () => const SizedBox.shrink(),
+                  error: (_, __) => const SizedBox.shrink(),
+                ),
               ],
             ),
           ),
@@ -247,6 +282,70 @@ class TeamDetailSidebar extends ConsumerWidget {
       }
     }
   }
+
+  Future<void> _confirmDisband(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Disband Team?'),
+        content: const Text('Are you sure you want to disband this team? This action cannot be undone.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true), 
+            style: TextButton.styleFrom(foregroundColor: AppColors.error),
+            child: const Text('Disband'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        await ref.read(teamsServiceProvider).deleteTeam(teamId);
+        ref.invalidate(myTeamsProvider);
+        if (context.mounted) {
+          Navigator.pop(context);
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Team disbanded successfully.')));
+        }
+      } catch (e) {
+        if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
+    }
+  }
+
+  Future<void> _confirmQuit(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Quit Team?'),
+        content: const Text('Are you sure you want to quit this team?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true), 
+            style: TextButton.styleFrom(foregroundColor: AppColors.error),
+            child: const Text('Quit'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        await ref.read(teamsServiceProvider).quitTeam(teamId);
+        ref.invalidate(myTeamsProvider);
+        ref.invalidate(userTeamStatusProvider(teamId));
+        ref.invalidate(teamDetailProvider(teamId));
+        if (context.mounted) {
+          Navigator.pop(context);
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('You have left the team.')));
+        }
+      } catch (e) {
+        if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
+    }
+  }
 }
 
 class _ApplicantCard extends ConsumerWidget {
@@ -376,7 +475,14 @@ class _InfoRow extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(label, style: GoogleFonts.poppins(fontSize: 14, color: AppColors.slate500)),
-        Text(value, style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w500, color: valueColor ?? AppColors.textPrimary)),
+        const SizedBox(width: 8),
+        Flexible(
+          child: Text(
+            value, 
+            style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w500, color: valueColor ?? AppColors.textPrimary),
+            textAlign: TextAlign.right,
+          ),
+        ),
       ],
     );
   }

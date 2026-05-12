@@ -15,6 +15,7 @@ class _EditProfileSidebarState extends ConsumerState<EditProfileSidebar> {
   final _firstNameCtrl = TextEditingController();
   final _lastNameCtrl = TextEditingController();
   final _usernameCtrl = TextEditingController();
+  final _roleCtrl = TextEditingController();
   final _bioCtrl = TextEditingController();
   bool _isLoading = false;
 
@@ -28,7 +29,8 @@ class _EditProfileSidebarState extends ConsumerState<EditProfileSidebar> {
       _firstNameCtrl.text = profile.firstName ?? '';
       _lastNameCtrl.text = profile.lastName ?? '';
       _usernameCtrl.text = profile.username ?? '';
-      _bioCtrl.text = profile.role ?? ''; // Using role as bio for now
+      _roleCtrl.text = profile.role ?? '';
+      _bioCtrl.text = profile.bio ?? ''; 
     }
   }
 
@@ -37,6 +39,7 @@ class _EditProfileSidebarState extends ConsumerState<EditProfileSidebar> {
     _firstNameCtrl.dispose();
     _lastNameCtrl.dispose();
     _usernameCtrl.dispose();
+    _roleCtrl.dispose();
     _bioCtrl.dispose();
     super.dispose();
   }
@@ -48,7 +51,8 @@ class _EditProfileSidebarState extends ConsumerState<EditProfileSidebar> {
         firstName: _firstNameCtrl.text.trim(),
         lastName: _lastNameCtrl.text.trim(),
         username: _usernameCtrl.text.trim(),
-        role: _bioCtrl.text.trim(),
+        role: _roleCtrl.text.trim(),
+        bio: _bioCtrl.text.trim(),
       );
       if (mounted) {
         Navigator.pop(context);
@@ -119,6 +123,12 @@ class _EditProfileSidebarState extends ConsumerState<EditProfileSidebar> {
                   _buildLabel('Username'),
                   const SizedBox(height: 8),
                   _buildInput(_usernameCtrl, 'Enter username'),
+                  
+                  const SizedBox(height: 24),
+                  
+                  _buildLabel('Role'),
+                  const SizedBox(height: 8),
+                  _buildInput(_roleCtrl, 'e.g. Back-end Developer'),
                   
                   const SizedBox(height: 24),
                   

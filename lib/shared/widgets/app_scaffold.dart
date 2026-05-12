@@ -260,7 +260,7 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
 
   Widget _buildSidePopup(SidePopupState state) {
     return Drawer(
-      width: 400,
+      width: 450,
       backgroundColor: AppColors.surface,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
       child: _getPopupContent(state),

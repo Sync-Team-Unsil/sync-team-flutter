@@ -5,6 +5,7 @@ class Profile {
   final String? lastName;
   final String? avatarUrl;
   final String? role;
+  final String? bio;
   final DateTime createdAt;
 
   Profile({
@@ -14,6 +15,7 @@ class Profile {
     this.lastName,
     this.avatarUrl,
     this.role,
+    this.bio,
     required this.createdAt,
   });
 
@@ -25,6 +27,7 @@ class Profile {
       lastName: json['last_name'],
       avatarUrl: json['avatar_url'],
       role: json['role'],
+      bio: json['bio'],
       createdAt: DateTime.parse(json['created_at']),
     );
   }

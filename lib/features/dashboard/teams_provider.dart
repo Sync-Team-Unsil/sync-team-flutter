@@ -20,6 +20,7 @@ final myTeamsProvider = FutureProvider<List<Team>>((ref) async {
       .from('team_members')
       .select('teams(*, team_members(*, profiles(*)))')
       .eq('user_id', userId)
+      .eq('status', 'accepted')
       .not('teams.created_by', 'eq', userId);
 
   final createdTeams = (createdResponse as List).map((t) => Team.fromJson(t)).toList();
@@ -135,18 +136,26 @@ class TeamsService {
     if (user == null) throw 'User not authenticated';
 
     // 1. Check if user is already in 2 teams (created or accepted)
+    // We only check team_members where user is 'accepted' or 'pending'? 
+    // Actually, user's request says "active teams".
+    // Let's check how many teams they are CURRENTLY in (Owner or Accepted Member)
+    final response = await _supabase
+        .from('team_members')
+        .select('team_id, status')
+        .eq('user_id', user.id)
+        .eq('status', 'accepted');
+    
+    // Also check if they are the creator of any teams NOT in the above list
+    // (In case the creator isn't in team_members table for some reason)
     final createdResponse = await _supabase
         .from('teams')
         .select('id')
         .eq('created_by', user.id);
     
-    final joinedResponse = await _supabase
-        .from('team_members')
-        .select('team_id')
-        .eq('user_id', user.id)
-        .eq('status', 'accepted');
-
-    final totalTeams = (createdResponse as List).length + (joinedResponse as List).length;
+    final joinedTeamIds = (response as List).map((m) => m['team_id']).toSet();
+    final createdTeamIds = (createdResponse as List).map((t) => t['id']).toSet();
+    
+    final totalTeams = joinedTeamIds.union(createdTeamIds).length;
 
     if (totalTeams >= 2) {
       throw 'Anda sudah mencapai batas maksimal 2 tim. Silakan keluar dari salah satu tim untuk bergabung dengan tim baru.';
@@ -190,5 +199,16 @@ class TeamsService {
   Future<void> deleteTeam(String teamId) async {
     await _supabase.from('team_members').delete().eq('team_id', teamId);
     await _supabase.from('teams').delete().eq('id', teamId);
+  }
+
+  Future<void> quitTeam(String teamId) async {
+    final user = _supabase.auth.currentUser;
+    if (user == null) throw 'User not authenticated';
+    
+    await _supabase
+        .from('team_members')
+        .delete()
+        .eq('team_id', teamId)
+        .eq('user_id', user.id);
   }
 }

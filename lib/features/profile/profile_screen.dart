@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme.dart';
 import '../../core/side_popup_provider.dart';
 import '../auth/auth_provider.dart';
+import '../dashboard/teams_provider.dart';
+import '../../shared/models/team.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -12,126 +14,62 @@ class ProfileScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final profileAsync = ref.watch(profileProvider);
+    final myTeamsAsync = ref.watch(myTeamsProvider);
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF8FAFC),
       body: profileAsync.when(
         data: (p) => SingleChildScrollView(
-          padding: const EdgeInsets.all(32),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Profil',
-                style: GoogleFonts.poppins(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.slate700,
-                ),
-              ),
-              const SizedBox(height: 32),
-              
-              // Profile Header Card
-              Container(
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFF1F5F9)),
-                ),
-                child: Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 40,
-                      backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-                      child: Text(
-                        p?.initials ?? 'U',
-                        style: GoogleFonts.poppins(
-                          fontSize: 24, 
-                          fontWeight: FontWeight.bold, 
-                          color: AppColors.primary
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 20),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            p?.displayName ?? 'User',
-                            style: GoogleFonts.poppins(
-                              fontSize: 20, 
-                              fontWeight: FontWeight.w600, 
-                              color: AppColors.slate700
-                            ),
-                          ),
-                          Text(
-                            p?.role ?? 'Software Engineering',
-                            style: GoogleFonts.poppins(
-                              fontSize: 14, 
-                              color: AppColors.slate500
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    OutlinedButton.icon(
-                      onPressed: () => ref.read(sidePopupProvider.notifier).show(SidePopupType.editProfile),
-                      icon: const Icon(Icons.edit_outlined, size: 18),
-                      label: const Text('Edit Profile'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.primary,
-                        side: const BorderSide(color: Color(0xFFE9D7FE)),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              
-              const SizedBox(height: 24),
-              
-              // Stats Row
-              Row(
+              // Banner & Profile Card Stack
+              Stack(
+                clipBehavior: Clip.none,
                 children: [
-                  Expanded(child: _StatCard(label: 'Team', value: '0')),
-                  const SizedBox(width: 16),
-                  Expanded(child: _StatCard(label: 'Points', value: '0')),
-                  const SizedBox(width: 16),
-                  Expanded(child: _StatCard(label: 'Review', value: '0')),
-                ],
-              ),
-              
-              const SizedBox(height: 40),
-              
-              // Menu Sections
-              _MenuSection(
-                title: 'Account',
-                items: [
-                  _MenuItem(icon: Icons.lock_outline_rounded, label: 'Password'),
-                  _MenuItem(icon: Icons.notifications_none_rounded, label: 'Notification'),
-                ],
-              ),
-              
-              const SizedBox(height: 24),
-              
-              _MenuSection(
-                title: 'System',
-                items: [
-                  _MenuItem(icon: Icons.language_rounded, label: 'Language'),
-                  _MenuItem(icon: Icons.help_outline_rounded, label: 'Help Center'),
-                  _MenuItem(
-                    icon: Icons.logout_rounded, 
-                    label: 'Log Out', 
-                    isDestructive: true,
-                    onTap: () async {
-                      await ref.read(profileProvider.notifier).signOut();
-                      if (context.mounted) {
-                        context.go('/auth');
-                      }
-                    },
+                  // Blue Gradient Banner
+                  Container(
+                    height: 231,
+                    width: double.infinity,
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.bottomRight,
+                        end: Alignment.topLeft,
+                        colors: [Color(0xFF2059B5), Color(0xFF8BA9F5)],
+                        stops: [0.125, 0.993],
+                        transform: GradientRotation(-68.56 * 3.14159 / 180),
+                      ),
+                    ),
+                  ),
+                  
+                  // Profile Card Overlay
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(64, 116, 64, 0),
+                    child: Column(
+                      children: [
+                        _buildProfileMainCard(context, ref, p, myTeamsAsync),
+                        const SizedBox(height: 24),
+                        _buildAboutCard(p),
+                        const SizedBox(height: 24),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(child: _buildSettingsCard(context, ref)),
+                            const SizedBox(width: 24),
+                            SizedBox(
+                              width: 333,
+                              child: Column(
+                                children: [
+                                  _buildSupportCard(),
+                                  const SizedBox(height: 24),
+                                  _buildSystemCard(context, ref),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 64),
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -143,109 +81,285 @@ class ProfileScreen extends ConsumerWidget {
       ),
     );
   }
-}
 
-class _StatCard extends StatelessWidget {
-  final String label;
-  final String value;
-  const _StatCard({required this.label, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildProfileMainCard(BuildContext context, WidgetRef ref, dynamic p, AsyncValue<List<Team>> myTeamsAsync) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 20),
+      width: double.infinity,
+      padding: const EdgeInsets.all(32),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFF1F5F9)),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 20,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 128,
+                height: 128,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 4),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.1),
+                      blurRadius: 10,
+                    )
+                  ],
+                ),
+                child: CircleAvatar(
+                  radius: 60,
+                  backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                  child: Text(
+                    p?.initials ?? 'U',
+                    style: GoogleFonts.poppins(
+                      fontSize: 40, 
+                      fontWeight: FontWeight.bold, 
+                      color: AppColors.primary
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 24),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      p?.displayName ?? 'User',
+                      style: GoogleFonts.poppins(
+                        fontSize: 24, 
+                        fontWeight: FontWeight.w500, 
+                        color: AppColors.slate700
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      p?.username != null ? '${p.username}@gmail.com' : 'user@gmail.com',
+                      style: GoogleFonts.poppins(
+                        fontSize: 14, 
+                        color: AppColors.slate500
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      p?.username != null ? '@${p.username}' : '@user',
+                      style: GoogleFonts.poppins(
+                        fontSize: 14, 
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              ElevatedButton.icon(
+                onPressed: () => ref.read(sidePopupProvider.notifier).show(SidePopupType.editProfile),
+                icon: const Icon(Icons.edit_outlined, size: 18),
+                label: const Text('Edit Profile'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFF4EBFF),
+                  foregroundColor: AppColors.primary,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 32),
+          const Divider(color: Color(0xFFF1F5F9), height: 1),
+          const SizedBox(height: 24),
+              Row(
+                children: [
+                  _buildStatItem('teams', '${myTeamsAsync.valueOrNull?.length ?? 0}/2'),
+                  const SizedBox(width: 48),
+                  _buildStatItem('ratings', '5.0'),
+                  const SizedBox(width: 48),
+                  _buildStatItem('role', p?.role ?? 'Back-end Developer'),
+                ],
+              ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatItem(String label, String value) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '$label:',
+          style: GoogleFonts.poppins(
+            fontSize: 12, 
+            fontWeight: FontWeight.w500, 
+            color: AppColors.slate500
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: GoogleFonts.poppins(
+            fontSize: 16, 
+            fontWeight: FontWeight.w500, 
+            color: AppColors.slate700
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAboutCard(dynamic p) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(33),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            value,
+            'About',
             style: GoogleFonts.poppins(
-              fontSize: 24, 
-              fontWeight: FontWeight.bold, 
+              fontSize: 18, 
+              fontWeight: FontWeight.w600, 
               color: AppColors.slate700
             ),
           ),
+          const SizedBox(height: 16),
           Text(
-            label,
+            p?.bio ?? 'No bio yet.',
             style: GoogleFonts.poppins(
               fontSize: 14, 
-              color: AppColors.slate500
+              color: AppColors.slate500,
+              height: 1.5,
             ),
           ),
         ],
       ),
     );
   }
-}
 
-class _MenuSection extends StatelessWidget {
-  final String title;
-  final List<_MenuItem> items;
-  const _MenuSection({required this.title, required this.items});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: GoogleFonts.poppins(
-            fontSize: 16, 
-            fontWeight: FontWeight.w600, 
-            color: AppColors.slate700
+  Widget _buildSettingsCard(BuildContext context, WidgetRef ref) {
+    return Container(
+      padding: const EdgeInsets.all(33),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Settings',
+            style: GoogleFonts.poppins(
+              fontSize: 18, 
+              fontWeight: FontWeight.w600, 
+              color: AppColors.slate700
+            ),
           ),
-        ),
-        const SizedBox(height: 12),
-        ...items,
-      ],
+          const SizedBox(height: 16),
+          _buildMenuRow(Icons.shield_outlined, 'Account and Security'),
+          _buildMenuRow(Icons.language_outlined, 'Language'),
+          _buildMenuRow(Icons.palette_outlined, 'Theme'),
+          _buildMenuRow(Icons.notifications_none_outlined, 'Notification'),
+        ],
+      ),
     );
   }
-}
 
-class _MenuItem extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool isDestructive;
-  final VoidCallback? onTap;
-  
-  const _MenuItem({
-    required this.icon, 
-    required this.label, 
-    this.isDestructive = false,
-    this.onTap,
-  });
+  Widget _buildSupportCard() {
+    return Container(
+      padding: const EdgeInsets.all(33),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Support',
+            style: GoogleFonts.poppins(
+              fontSize: 18, 
+              fontWeight: FontWeight.w600, 
+              color: AppColors.slate700
+            ),
+          ),
+          const SizedBox(height: 16),
+          _buildMenuRow(Icons.help_outline_rounded, 'Question'),
+        ],
+      ),
+    );
+  }
 
-  @override
-  Widget build(BuildContext context) {
-    final color = isDestructive ? AppColors.error : AppColors.slate700;
-    
-    return ListTile(
+  Widget _buildSystemCard(BuildContext context, WidgetRef ref) {
+    return Container(
+      padding: const EdgeInsets.all(33),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'System',
+            style: GoogleFonts.poppins(
+              fontSize: 18, 
+              fontWeight: FontWeight.w600, 
+              color: AppColors.slate700
+            ),
+          ),
+          const SizedBox(height: 16),
+          _buildMenuRow(
+            Icons.logout_rounded, 
+            'Log Out', 
+            showArrow: false,
+            onTap: () async {
+              await ref.read(profileProvider.notifier).signOut();
+              if (context.mounted) {
+                context.go('/auth');
+              }
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMenuRow(IconData icon, String label, {bool showArrow = true, VoidCallback? onTap}) {
+    return InkWell(
       onTap: onTap,
-      contentPadding: EdgeInsets.zero,
-      leading: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Row(
+          children: [
+            Icon(icon, size: 24, color: const Color(0xFF6C6F85)),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: GoogleFonts.poppins(
+                fontSize: 12, 
+                color: const Color(0xFF6C6F85)
+              ),
+            ),
+            const Spacer(),
+            if (showArrow)
+              const Icon(Icons.chevron_right_rounded, size: 20, color: Color(0xFF6C6F85)),
+          ],
         ),
-        child: Icon(icon, color: color, size: 20),
       ),
-      title: Text(
-        label,
-        style: GoogleFonts.poppins(
-          fontSize: 15, 
-          fontWeight: FontWeight.w500, 
-          color: color
-        ),
-      ),
-      trailing: isDestructive 
-        ? null 
-        : const Icon(Icons.chevron_right_rounded, color: AppColors.slate500),
     );
   }
 }
