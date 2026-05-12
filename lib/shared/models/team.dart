@@ -70,7 +70,7 @@ class TeamMember {
       teamId: json['team_id'],
       userId: json['user_id'],
       status: json['status'],
-      joinedAt: DateTime.parse(json['created_at']),
+      joinedAt: DateTime.parse(json['joined_at'] ?? json['created_at'] ?? DateTime.now().toIso8601String()),
       profile: json['profiles'] != null ? Profile.fromJson(json['profiles']) : null,
     );
   }

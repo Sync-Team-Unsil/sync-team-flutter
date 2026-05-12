@@ -1,12 +1,12 @@
 {
-    "name": "syncteam",
-    "short_name": "syncteam",
+    "name": "SyncTeam",
+    "short_name": "SyncTeam",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
-    "orientation": "portrait-primary",
+    "background_color": "#0a0e17",
+    "theme_color": "#0a0e17",
+    "description": "Collaborative Team Management App",
+    "orientation": "any",
     "prefer_related_applications": false,
     "icons": [
         {

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1039676366270",
+    "project_id": "sync-team-project",
+    "storage_bucket": "sync-team-project.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1039676366270:android:352c592a6c797c092a2def",
+        "android_client_info": {
+          "package_name": "com.syncteam.syncteam"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCRCM3ywelgIzvZP6TJelTky1FWeoGuR0U"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

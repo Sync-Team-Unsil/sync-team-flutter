@@ -60,7 +60,18 @@ class DashboardScreen extends ConsumerWidget {
                     profile.when(
                       data: (p) => _ProfileHeader(p: p),
                       loading: () => const LinearProgressIndicator(),
-                      error: (e, _) => Text('Error: $e'),
+                      error: (e, _) => Row(
+                        children: [
+                          Expanded(child: Text('Error: $e', style: const TextStyle(color: AppColors.error))),
+                          TextButton(
+                            onPressed: () async {
+                              await ref.read(profileProvider.notifier).signOut();
+                              if (context.mounted) context.go('/auth');
+                            },
+                            child: const Text('Logout', style: TextStyle(color: AppColors.error)),
+                          ),
+                        ],
+                      ),
                     ),
                     const SizedBox(height: 32),
                     _SectionHeader(title: 'My Teams', onSeeAll: () => context.go('/teams')),

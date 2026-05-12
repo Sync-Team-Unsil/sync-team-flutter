@@ -51,7 +51,17 @@ class NotificationsNotifier extends StateNotifier<AsyncValue<List<NotificationMo
             value: user.id,
           ),
           callback: (payload) {
-            load();
+            if (payload.eventType == PostgresChangeEvent.insert) {
+              final newNotif = NotificationModel.fromJson(payload.newRecord);
+              state.whenData((currentList) {
+                // Jangan tambah jika sudah ada (mencegah duplikat)
+                if (!currentList.any((n) => n.id == newNotif.id)) {
+                  state = AsyncValue.data([newNotif, ...currentList]);
+                }
+              });
+            } else {
+              load(); // Untuk update/delete tetap load ulang
+            }
           },
         )
         .subscribe();

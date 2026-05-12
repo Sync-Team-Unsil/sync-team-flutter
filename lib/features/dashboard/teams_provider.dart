@@ -7,13 +7,26 @@ final myTeamsProvider = FutureProvider<List<Team>>((ref) async {
   final user = supabase.auth.currentUser;
   if (user == null) return [];
 
-  final response = await supabase
+  // Query 1: Teams I created
+  final createdResponse = await supabase
       .from('teams')
       .select('*, team_members(*, profiles(*))')
-      .or('created_by.eq.${user.id}, team_members.user_id.eq.${user.id}')
-      .order('created_at', ascending: false);
+      .eq('created_by', user.id);
 
-  return (response as List).map((t) => Team.fromJson(t)).toList();
+  // Query 2: Teams I am a member of
+  final joinedResponse = await supabase
+      .from('team_members')
+      .select('teams(*, team_members(*, profiles(*)))')
+      .eq('user_id', user.id)
+      .not('teams.created_by', 'eq', user.id); // Avoid duplicates if they are already in Query 1
+
+  final createdTeams = (createdResponse as List).map((t) => Team.fromJson(t)).toList();
+  final joinedTeams = (joinedResponse as List)
+      .where((m) => m['teams'] != null)
+      .map((m) => Team.fromJson(m['teams']))
+      .toList();
+
+  return [...createdTeams, ...joinedTeams]..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 });
 
 final availableTeamsProvider = FutureProvider<List<Team>>((ref) async {
@@ -119,5 +132,12 @@ class TeamsService {
         .delete()
         .eq('team_id', teamId)
         .eq('user_id', userId);
+  }
+  static Future<void> deleteTeam(String teamId) async {
+    // team_members will be deleted by ON DELETE CASCADE if set up, 
+    // otherwise we should delete them manually.
+    // Assuming Cascade is not set up for safety:
+    await _supabase.from('team_members').delete().eq('team_id', teamId);
+    await _supabase.from('teams').delete().eq('id', teamId);
   }
 }

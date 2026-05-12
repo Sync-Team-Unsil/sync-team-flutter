@@ -23,6 +23,25 @@ class TeamDetailScreen extends ConsumerWidget {
         backgroundColor: AppColors.surface,
         title: const Text('Team Detail'),
         leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => context.pop()),
+        actions: [
+          teamAsync.when(
+            data: (team) => team != null && team.createdBy == userId
+                ? IconButton(
+                    icon: const Icon(Icons.delete_outline, color: AppColors.error),
+                    onPressed: () => _showDeleteDialog(context, ref, team),
+                  )
+                : const SizedBox.shrink(),
+            loading: () => const SizedBox.shrink(),
+            error: (_, __) => const SizedBox.shrink(),
+          ),
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: () {
+              ref.invalidate(teamDetailProvider(teamId));
+              ref.invalidate(userTeamStatusProvider(teamId));
+            },
+          ),
+        ],
       ),
       body: teamAsync.when(
         data: (team) {
@@ -94,6 +113,30 @@ class TeamDetailScreen extends ConsumerWidget {
         },
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Error: $e')),
+      ),
+    );
+  }
+
+  void _showDeleteDialog(BuildContext context, WidgetRef ref, Team team) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Team'),
+        content: Text('Are you sure you want to dissolve "${team.name}"? This action cannot be undone.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () async {
+              await TeamsService.deleteTeam(team.id);
+              if (context.mounted) {
+                context.pop(); // Close dialog
+                context.pop(); // Go back to dashboard
+                ref.invalidate(myTeamsProvider);
+              }
+            },
+            child: const Text('Dissolve', style: TextStyle(color: AppColors.error)),
+          ),
+        ],
       ),
     );
   }

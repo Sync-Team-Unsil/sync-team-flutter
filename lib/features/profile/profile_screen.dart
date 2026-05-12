@@ -104,7 +104,22 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ),
         ),
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Error: $e')),
+        error: (e, _) => Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text('Error loading profile: $e', textAlign: TextAlign.center),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: () async {
+                  await ref.read(profileProvider.notifier).signOut();
+                  if (context.mounted) context.go('/auth');
+                },
+                child: const Text('Sign Out'),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

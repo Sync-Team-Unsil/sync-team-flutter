@@ -2,33 +2,33 @@ class NotificationModel {
   final String id;
   final String userId;
   final String title;
-  final String content;
+  final String body;
   final String type; // team_apply, team_accepted, team_rejected, etc.
   final bool isRead;
   final DateTime createdAt;
-  final Map<String, dynamic>? metadata;
+  final Map<String, dynamic>? data;
 
   NotificationModel({
     required this.id,
     required this.userId,
     required this.title,
-    required this.content,
+    required this.body,
     required this.type,
     required this.isRead,
     required this.createdAt,
-    this.metadata,
+    this.data,
   });
 
   factory NotificationModel.fromJson(Map<String, dynamic> json) {
     return NotificationModel(
       id: json['id'],
       userId: json['user_id'],
-      title: json['title'],
-      content: json['content'],
-      type: json['type'],
+      title: json['title'] ?? 'Notification',
+      body: json['body'] ?? 'No content',
+      type: json['type'] ?? 'info',
       isRead: json['is_read'] ?? false,
       createdAt: DateTime.parse(json['created_at']),
-      metadata: json['metadata'],
+      data: json['data'],
     );
   }
 }

@@ -45,7 +45,7 @@ class NotificationsScreen extends ConsumerWidget {
                     subtitle: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(n.content),
+                        Text(n.body),
                         const SizedBox(height: 4),
                         Text(
                           '${n.createdAt.hour}:${n.createdAt.minute.toString().padLeft(2, '0')}',

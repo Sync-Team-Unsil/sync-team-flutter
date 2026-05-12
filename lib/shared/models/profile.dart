@@ -34,8 +34,11 @@ class Profile {
       : (username ?? 'User');
 
   String get initials {
-    if (firstName != null && lastName != null) {
+    if (firstName != null && firstName!.isNotEmpty && lastName != null && lastName!.isNotEmpty) {
       return '${firstName![0]}${lastName![0]}'.toUpperCase();
+    }
+    if (firstName != null && firstName!.isNotEmpty) {
+      return firstName![0].toUpperCase();
     }
     if (username != null && username!.isNotEmpty) {
       return username![0].toUpperCase();

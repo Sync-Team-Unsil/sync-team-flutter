@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme.dart';
+import '../../features/auth/auth_provider.dart';
 import '../../features/notifications/notifications_provider.dart';
 
 class AppScaffold extends ConsumerStatefulWidget {
@@ -104,6 +105,19 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
                     label: Text('Profile'),
                   ),
                 ],
+                trailing: Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.logout, color: AppColors.error),
+                        onPressed: () => _handleLogout(context, ref),
+                        tooltip: 'Logout',
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+                  ),
+                ),
               ),
             ),
             Expanded(child: widget.child),
@@ -114,6 +128,16 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
 
     // Mobile layout with BottomNavigationBar
     return Scaffold(
+      appBar: AppBar(
+        title: const Text('SyncTeam'),
+        backgroundColor: AppColors.background,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout, color: AppColors.error),
+            onPressed: () => _handleLogout(context, ref),
+          ),
+        ],
+      ),
       body: widget.child,
       bottomNavigationBar: Container(
         decoration: const BoxDecoration(
@@ -161,6 +185,10 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
         ),
       ),
     );
+  }
+  void _handleLogout(BuildContext context, WidgetRef ref) async {
+    await ref.read(profileProvider.notifier).signOut();
+    if (context.mounted) context.go('/auth');
   }
 }
 
