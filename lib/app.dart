@@ -16,7 +16,7 @@ class SyncTeamApp extends ConsumerWidget {
       title: 'SyncTeam',
       debugShowCheckedModeBanner: false,
       scaffoldMessengerKey: scaffoldMessengerKey,
-      theme: AppTheme.darkTheme,
+      theme: AppTheme.lightTheme,
       routerConfig: router,
     );
   }

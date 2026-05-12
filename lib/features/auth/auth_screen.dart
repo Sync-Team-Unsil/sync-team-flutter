@@ -12,36 +12,25 @@ class AuthScreen extends ConsumerStatefulWidget {
   ConsumerState<AuthScreen> createState() => _AuthScreenState();
 }
 
-class _AuthScreenState extends ConsumerState<AuthScreen> with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+class _AuthScreenState extends ConsumerState<AuthScreen> {
   bool _isLogin = true;
   final _emailCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
   final _userCtrl = TextEditingController();
   final _confirmCtrl = TextEditingController();
+  final _firstNameCtrl = TextEditingController();
+  final _lastNameCtrl = TextEditingController();
   bool _isLoading = false;
-  bool _obscure = true;
   String? _error;
 
   @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-    _tabController.addListener(() {
-      setState(() {
-        _isLogin = _tabController.index == 0;
-        _error = null;
-      });
-    });
-  }
-
-  @override
   void dispose() {
-    _tabController.dispose();
     _emailCtrl.dispose();
     _passCtrl.dispose();
     _userCtrl.dispose();
     _confirmCtrl.dispose();
+    _firstNameCtrl.dispose();
+    _lastNameCtrl.dispose();
     super.dispose();
   }
 
@@ -86,145 +75,262 @@ class _AuthScreenState extends ConsumerState<AuthScreen> with SingleTickerProvid
     }
   }
 
+  void _toggleMode() {
+    setState(() {
+      _isLogin = !_isLogin;
+      _error = null;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    final isWide = MediaQuery.of(context).size.width > 800;
+    final isWide = MediaQuery.of(context).size.width > 900;
     return Scaffold(
-      backgroundColor: AppColors.background,
-      body: Row(
-        children: [
-          if (isWide)
-            Expanded(
-              flex: 5,
-              child: Container(
-                decoration: const BoxDecoration(
-                  gradient: AppColors.gradientPrimary,
+      backgroundColor: Colors.white,
+      body: isWide ? _buildWebLayout() : _buildMobileLayout(),
+    );
+  }
+
+  // ─── WEB LAYOUT (Node 1:2721 & 1:2819) ───
+  Widget _buildWebLayout() {
+    return Row(
+      children: [
+        // Left: Image with text overlay
+        Expanded(
+          flex: 1,
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: Image.asset(
+                  'assets/images/auth_illustration.png',
+                  fit: BoxFit.cover,
                 ),
-                child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.sync_rounded, size: 100, color: Colors.white),
-                      const SizedBox(height: 24),
-                      Text(
-                        'SyncTeam',
-                        style: GoogleFonts.inter(
-                          fontSize: 48,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Connect with your team instantly.',
-                        style: GoogleFonts.inter(
-                          fontSize: 18,
-                          color: Colors.white.withValues(alpha: 0.8),
-                        ),
-                      ),
-                    ],
+              ),
+              // Shadow overlay
+              Positioned.fill(
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Colors.transparent, Colors.black.withValues(alpha: 0.4)],
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                    ),
                   ),
                 ),
               ),
-            ),
-          Expanded(
-            flex: 4,
-            child: Center(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(32),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 400),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        _isLogin ? 'Welcome Back' : 'Create Account',
-                        style: Theme.of(context).textTheme.displayLarge,
+              // Text overlay
+              Positioned(
+                left: 48,
+                bottom: 80,
+                right: 48,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Sync your team with SyncTeam',
+                      style: GoogleFonts.poppins(
+                        fontSize: 36,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                        letterSpacing: -0.72,
                       ),
-                      const SizedBox(height: 8),
-                      Text(
-                        _isLogin ? 'Sign in to continue' : 'Join the community today',
-                        style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'The best platform to manage and collaborate with your team efficiently.',
+                      style: GoogleFonts.poppins(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w400,
+                        color: Colors.white.withValues(alpha: 0.9),
                       ),
-                      const SizedBox(height: 32),
-                      TabBar(
-                        controller: _tabController,
-                        dividerColor: Colors.transparent,
-                        tabs: const [
-                          Tab(text: 'Login'),
-                          Tab(text: 'Register'),
-                        ],
-                      ),
-                      const SizedBox(height: 32),
-                      if (_error != null) ...[
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: AppColors.error.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: AppColors.error),
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.error_outline, color: AppColors.error, size: 20),
-                              const SizedBox(width: 10),
-                              Expanded(child: Text(_error!, style: const TextStyle(color: AppColors.error))),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                      ],
-                      if (!_isLogin) ...[
-                        _field('Username', _userCtrl, Icons.person_outline),
-                        const SizedBox(height: 16),
-                      ],
-                      _field('Email', _emailCtrl, Icons.email_outlined, type: TextInputType.emailAddress),
-                      const SizedBox(height: 16),
-                      _field(
-                        'Password',
-                        _passCtrl,
-                        Icons.lock_outline,
-                        obscure: _obscure,
-                        suffix: IconButton(
-                          icon: Icon(_obscure ? Icons.visibility_off : Icons.visibility),
-                          onPressed: () => setState(() => _obscure = !_obscure),
-                        ),
-                      ),
-                      if (!_isLogin) ...[
-                        const SizedBox(height: 16),
-                        _field('Confirm Password', _confirmCtrl, Icons.lock_reset, obscure: true),
-                      ],
-                      const SizedBox(height: 32),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: _isLoading ? null : _submit,
-                          child: _isLoading
-                              ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                              : Text(_isLogin ? 'Sign In' : 'Sign Up'),
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
+              ),
+            ],
+          ),
+        ),
+        // Right: Form
+        Expanded(
+          flex: 1,
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(64),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 420),
+                child: _buildForm(),
               ),
             ),
           ),
-        ],
+        ),
+      ],
+    );
+  }
+
+  // ─── MOBILE LAYOUT ───
+  Widget _buildMobileLayout() {
+    return SafeArea(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+        child: _buildForm(),
       ),
     );
   }
 
-  Widget _field(String l, TextEditingController c, IconData i, {TextInputType? type, bool obscure = false, Widget? suffix}) {
-    return TextField(
-      controller: c,
-      keyboardType: type,
-      obscureText: obscure,
-      decoration: InputDecoration(
-        labelText: l,
-        prefixIcon: Icon(i),
-        suffixIcon: suffix,
-      ),
+  // ─── FORM ───
+  Widget _buildForm() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Logo (Node 1:2730)
+        Row(
+          children: [
+            Container(
+              width: 32,
+              height: 38,
+              decoration: BoxDecoration(
+                color: AppColors.primary,
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: const Icon(Icons.sync_rounded, size: 20, color: Colors.white),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              'SyncTeam',
+              style: GoogleFonts.poppins(
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+                color: AppColors.primary,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 24),
+
+        // Title & Subtitle (Node 1:2734)
+        Text(
+          _isLogin ? 'Welcome Back' : 'Welcome to SyncTeam',
+          style: GoogleFonts.poppins(
+            fontSize: 30,
+            fontWeight: FontWeight.w500,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          _isLogin
+              ? 'Please enter your username and password.'
+              : 'Create an account for using sync team, please enter your personal information',
+          style: GoogleFonts.poppins(
+            fontSize: 16,
+            fontWeight: FontWeight.w400,
+            color: AppColors.textSecondary,
+          ),
+        ),
+        const SizedBox(height: 32),
+
+        // Error message
+        if (_error != null) ...[
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.error.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(5),
+            ),
+            child: Text(_error!, style: const TextStyle(color: AppColors.error, fontSize: 13)),
+          ),
+          const SizedBox(height: 16),
+        ],
+
+        // Form Fields (Node 1:2738)
+        if (!_isLogin) ...[
+          Row(
+            children: [
+              Expanded(child: _buildField('First Name', _firstNameCtrl, 'First name')),
+              const SizedBox(width: 16),
+              Expanded(child: _buildField('Last Name', _lastNameCtrl, 'Last name')),
+            ],
+          ),
+          const SizedBox(height: 16),
+          _buildField('Username', _userCtrl, 'Please input your Username'),
+          const SizedBox(height: 16),
+        ],
+
+        _buildField(
+          _isLogin ? 'Username' : 'Email',
+          _emailCtrl,
+          _isLogin ? 'Please input your Username' : 'Please input your Email',
+          type: _isLogin ? null : TextInputType.emailAddress,
+        ),
+        const SizedBox(height: 16),
+
+        _buildField('Password', _passCtrl, 'Please input your Password', obscure: true),
+
+        if (!_isLogin) ...[
+          const SizedBox(height: 16),
+          _buildField('Confirm Password', _confirmCtrl, 'Please input your Password again', obscure: true),
+        ],
+
+        const SizedBox(height: 40),
+
+        // Submit Button (Node 1:2766)
+        SizedBox(
+          width: double.infinity,
+          height: 56,
+          child: ElevatedButton(
+            onPressed: _isLoading ? null : _submit,
+            child: _isLoading
+                ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white))
+                : Text(_isLogin ? 'Login' : 'Register'),
+          ),
+        ),
+        const SizedBox(height: 12),
+
+        // Toggle Link (Node 1:2768)
+        Center(
+          child: GestureDetector(
+            onTap: _toggleMode,
+            child: RichText(
+              text: TextSpan(
+                style: GoogleFonts.poppins(fontSize: 14, color: AppColors.textSubtext2),
+                children: [
+                  TextSpan(text: _isLogin ? "don't have an account, " : 'already have account, '),
+                  TextSpan(
+                    text: _isLogin ? 'register' : 'login',
+                    style: const TextStyle(color: AppColors.textLink, fontWeight: FontWeight.w500),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildField(String label, TextEditingController ctrl, String hint, {TextInputType? type, bool obscure = false}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: GoogleFonts.poppins(
+            fontSize: 18,
+            fontWeight: FontWeight.w500,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: ctrl,
+          keyboardType: type,
+          obscureText: obscure,
+          style: GoogleFonts.poppins(fontSize: 16, color: AppColors.textPrimary),
+          decoration: InputDecoration(
+            hintText: hint,
+          ),
+        ),
+      ],
     );
   }
 }

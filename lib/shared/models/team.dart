@@ -74,4 +74,7 @@ class TeamMember {
       profile: json['profiles'] != null ? Profile.fromJson(json['profiles']) : null,
     );
   }
+
+  String? get displayName => profile?.displayName;
+  String get initials => profile?.initials ?? '?';
 }

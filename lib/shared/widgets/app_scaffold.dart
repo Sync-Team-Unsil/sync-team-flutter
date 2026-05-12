@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme.dart';
 import '../../features/auth/auth_provider.dart';
 import '../../features/notifications/notifications_provider.dart';
@@ -42,129 +43,58 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
     final unreadCount = ref.watch(unreadCountProvider);
 
     if (isWide) {
-      // Desktop layout with NavigationRail
-      return Scaffold(
-        body: Row(
-          children: [
-            Container(
-              decoration: const BoxDecoration(
-                color: AppColors.surface,
-                border: Border(
-                  right: BorderSide(color: AppColors.divider, width: 1),
-                ),
-              ),
-              child: NavigationRail(
-                selectedIndex: _currentIndex,
-                onDestinationSelected: _onTap,
-                extended: false,
-                backgroundColor: Colors.transparent,
-                leading: Padding(
-                  padding: const EdgeInsets.only(top: 16, bottom: 24),
-                  child: Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      gradient: AppColors.gradientPrimary,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(
-                      Icons.sync_rounded,
-                      color: Colors.white,
-                      size: 24,
-                    ),
-                  ),
-                ),
-                indicatorColor: AppColors.primary.withValues(alpha: 0.15),
-                destinations: [
-                  const NavigationRailDestination(
-                    icon: Icon(Icons.home_outlined),
-                    selectedIcon: Icon(Icons.home_rounded),
-                    label: Text('Home'),
-                  ),
-                  const NavigationRailDestination(
-                    icon: Icon(Icons.groups_outlined),
-                    selectedIcon: Icon(Icons.groups_rounded),
-                    label: Text('Teams'),
-                  ),
-                  NavigationRailDestination(
-                    icon: Badge(
-                      isLabelVisible: unreadCount > 0,
-                      label: Text('$unreadCount'),
-                      child: const Icon(Icons.notifications_outlined),
-                    ),
-                    selectedIcon: Badge(
-                      isLabelVisible: unreadCount > 0,
-                      label: Text('$unreadCount'),
-                      child: const Icon(Icons.notifications_rounded),
-                    ),
-                    label: const Text('Notifications'),
-                  ),
-                  const NavigationRailDestination(
-                    icon: Icon(Icons.person_outlined),
-                    selectedIcon: Icon(Icons.person_rounded),
-                    label: Text('Profile'),
-                  ),
-                ],
-                trailing: Expanded(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.logout, color: AppColors.error),
-                        onPressed: () => _handleLogout(context, ref),
-                        tooltip: 'Logout',
-                      ),
-                      const SizedBox(height: 16),
-                    ],
-                  ),
-                ),
+      return _buildDesktopLayout(unreadCount);
+    }
+    return _buildMobileLayout(unreadCount);
+  }
+
+  // ─── DESKTOP LAYOUT ───
+  Widget _buildDesktopLayout(int unreadCount) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: Row(
+        children: [
+          // Sidebar
+          Container(
+            width: 72,
+            decoration: const BoxDecoration(
+              color: AppColors.surface,
+              border: Border(
+                right: BorderSide(color: AppColors.divider, width: 1),
               ),
             ),
-            Expanded(child: widget.child),
-          ],
-        ),
-      );
-    }
-
-    // Mobile layout with BottomNavigationBar
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('SyncTeam'),
-        backgroundColor: AppColors.background,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout, color: AppColors.error),
-            onPressed: () => _handleLogout(context, ref),
-          ),
-        ],
-      ),
-      body: widget.child,
-      bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          color: AppColors.surface,
-          border: Border(top: BorderSide(color: AppColors.divider, width: 1)),
-        ),
-        child: SafeArea(
-          child: SizedBox(
-            height: 64,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
+            child: Column(
               children: [
-                _NavItem(
+                const SizedBox(height: 20),
+                // Logo
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    gradient: AppColors.gradientPrimary,
+                    borderRadius: BorderRadius.circular(5),
+                  ),
+                  child: const Icon(Icons.sync_rounded, color: Colors.white, size: 24),
+                ),
+                const SizedBox(height: 32),
+                // Nav items
+                _SideNavItem(
                   icon: Icons.home_outlined,
                   activeIcon: Icons.home_rounded,
                   label: 'Home',
                   isActive: _currentIndex == 0,
                   onTap: () => _onTap(0),
                 ),
-                _NavItem(
+                const SizedBox(height: 8),
+                _SideNavItem(
                   icon: Icons.groups_outlined,
                   activeIcon: Icons.groups_rounded,
                   label: 'Teams',
                   isActive: _currentIndex == 1,
                   onTap: () => _onTap(1),
                 ),
-                _NavItem(
+                const SizedBox(height: 8),
+                _SideNavItem(
                   icon: Icons.notifications_outlined,
                   activeIcon: Icons.notifications_rounded,
                   label: 'Notif',
@@ -172,8 +102,76 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
                   badge: unreadCount,
                   onTap: () => _onTap(2),
                 ),
-                _NavItem(
-                  icon: Icons.person_outlined,
+                const SizedBox(height: 8),
+                _SideNavItem(
+                  icon: Icons.person_outline,
+                  activeIcon: Icons.person_rounded,
+                  label: 'Profile',
+                  isActive: _currentIndex == 3,
+                  onTap: () => _onTap(3),
+                ),
+                const Spacer(),
+                IconButton(
+                  icon: const Icon(Icons.logout_rounded, color: AppColors.error, size: 22),
+                  onPressed: () => _handleLogout(context, ref),
+                  tooltip: 'Logout',
+                ),
+                const SizedBox(height: 20),
+              ],
+            ),
+          ),
+          Expanded(child: widget.child),
+        ],
+      ),
+    );
+  }
+
+  // ─── MOBILE LAYOUT ───
+  Widget _buildMobileLayout(int unreadCount) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: widget.child,
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 10,
+              offset: const Offset(0, -2),
+            ),
+          ],
+        ),
+        child: SafeArea(
+          child: SizedBox(
+            height: 64,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _BottomNavItem(
+                  icon: Icons.home_outlined,
+                  activeIcon: Icons.home_rounded,
+                  label: 'Home',
+                  isActive: _currentIndex == 0,
+                  onTap: () => _onTap(0),
+                ),
+                _BottomNavItem(
+                  icon: Icons.groups_outlined,
+                  activeIcon: Icons.groups_rounded,
+                  label: 'Teams',
+                  isActive: _currentIndex == 1,
+                  onTap: () => _onTap(1),
+                ),
+                _BottomNavItem(
+                  icon: Icons.notifications_outlined,
+                  activeIcon: Icons.notifications_rounded,
+                  label: 'Notification',
+                  isActive: _currentIndex == 2,
+                  badge: unreadCount,
+                  onTap: () => _onTap(2),
+                ),
+                _BottomNavItem(
+                  icon: Icons.person_outline,
                   activeIcon: Icons.person_rounded,
                   label: 'Profile',
                   isActive: _currentIndex == 3,
@@ -186,13 +184,15 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
       ),
     );
   }
+
   void _handleLogout(BuildContext context, WidgetRef ref) async {
     await ref.read(profileProvider.notifier).signOut();
     if (context.mounted) context.go('/auth');
   }
 }
 
-class _NavItem extends StatelessWidget {
+// ─── BOTTOM NAV ITEM (Mobile) ───
+class _BottomNavItem extends StatelessWidget {
   final IconData icon;
   final IconData activeIcon;
   final String label;
@@ -200,7 +200,7 @@ class _NavItem extends StatelessWidget {
   final int badge;
   final VoidCallback onTap;
 
-  const _NavItem({
+  const _BottomNavItem({
     required this.icon,
     required this.activeIcon,
     required this.label,
@@ -215,7 +215,7 @@ class _NavItem extends StatelessWidget {
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: SizedBox(
-        width: 64,
+        width: 72,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -236,10 +236,7 @@ class _NavItem extends StatelessWidget {
                     right: -8,
                     top: -4,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 4,
-                        vertical: 1,
-                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                       decoration: BoxDecoration(
                         color: AppColors.error,
                         borderRadius: BorderRadius.circular(8),
@@ -247,11 +244,7 @@ class _NavItem extends StatelessWidget {
                       constraints: const BoxConstraints(minWidth: 16),
                       child: Text(
                         '$badge',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                        ),
+                        style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600),
                         textAlign: TextAlign.center,
                       ),
                     ),
@@ -261,12 +254,75 @@ class _NavItem extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               label,
-              style: TextStyle(
+              style: GoogleFonts.inter(
                 fontSize: 11,
                 fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
                 color: isActive ? AppColors.primary : AppColors.textMuted,
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── SIDE NAV ITEM (Desktop) ───
+class _SideNavItem extends StatelessWidget {
+  final IconData icon;
+  final IconData activeIcon;
+  final String label;
+  final bool isActive;
+  final int badge;
+  final VoidCallback onTap;
+
+  const _SideNavItem({
+    required this.icon,
+    required this.activeIcon,
+    required this.label,
+    required this.isActive,
+    this.badge = 0,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        width: 52,
+        height: 52,
+        decoration: BoxDecoration(
+          color: isActive ? AppColors.primary.withValues(alpha: 0.1) : Colors.transparent,
+          borderRadius: BorderRadius.circular(5),
+        ),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Icon(
+              isActive ? activeIcon : icon,
+              color: isActive ? AppColors.primary : AppColors.textMuted,
+              size: 24,
+            ),
+            if (badge > 0)
+              Positioned(
+                right: 8,
+                top: 8,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                  decoration: BoxDecoration(
+                    color: AppColors.error,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  constraints: const BoxConstraints(minWidth: 16),
+                  child: Text(
+                    '$badge',
+                    style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
           ],
         ),
       ),

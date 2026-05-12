@@ -84,10 +84,12 @@ final userTeamStatusProvider = FutureProvider.family<String?, String>((ref, team
   }
 });
 
-class TeamsService {
-  static final _supabase = Supabase.instance.client;
+final teamsServiceProvider = Provider((ref) => TeamsService());
 
-  static Future<void> createTeam({
+class TeamsService {
+  final _supabase = Supabase.instance.client;
+
+  Future<void> createTeam({
     required String name,
     required String description,
     required String requirements,
@@ -107,7 +109,7 @@ class TeamsService {
     });
   }
 
-  static Future<void> applyToTeam(String teamId) async {
+  Future<void> applyToTeam(String teamId) async {
     final user = _supabase.auth.currentUser;
     if (user == null) throw 'User not authenticated';
 
@@ -118,7 +120,7 @@ class TeamsService {
     });
   }
 
-  static Future<void> acceptMember(String teamId, String userId) async {
+  Future<void> acceptMember(String teamId, String userId) async {
     await _supabase
         .from('team_members')
         .update({'status': 'accepted'})
@@ -126,17 +128,15 @@ class TeamsService {
         .eq('user_id', userId);
   }
 
-  static Future<void> rejectMember(String teamId, String userId) async {
+  Future<void> rejectMember(String teamId, String userId) async {
     await _supabase
         .from('team_members')
         .delete()
         .eq('team_id', teamId)
         .eq('user_id', userId);
   }
-  static Future<void> deleteTeam(String teamId) async {
-    // team_members will be deleted by ON DELETE CASCADE if set up, 
-    // otherwise we should delete them manually.
-    // Assuming Cascade is not set up for safety:
+
+  Future<void> deleteTeam(String teamId) async {
     await _supabase.from('team_members').delete().eq('team_id', teamId);
     await _supabase.from('teams').delete().eq('id', teamId);
   }
