@@ -2,7 +2,7 @@ class NotificationModel {
   final String id;
   final String userId;
   final String title;
-  final String body;
+  final String message;
   final String type; // team_apply, team_accepted, team_rejected, etc.
   final bool isRead;
   final DateTime createdAt;
@@ -12,7 +12,7 @@ class NotificationModel {
     required this.id,
     required this.userId,
     required this.title,
-    required this.body,
+    required this.message,
     required this.type,
     required this.isRead,
     required this.createdAt,
@@ -24,7 +24,7 @@ class NotificationModel {
       id: json['id'],
       userId: json['user_id'],
       title: json['title'] ?? 'Notification',
-      body: json['body'] ?? 'No content',
+      message: json['message'] ?? json['body'] ?? 'No content',
       type: json['type'] ?? 'info',
       isRead: json['is_read'] ?? false,
       createdAt: DateTime.parse(json['created_at']),

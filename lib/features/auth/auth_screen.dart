@@ -102,7 +102,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
             children: [
               Positioned.fill(
                 child: Image.asset(
-                  'assets/images/auth_illustration.png',
+                  'assets/images/imgloginregister.png',
                   fit: BoxFit.cover,
                 ),
               ),
@@ -185,14 +185,11 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
         // Logo (Node 1:2730)
         Row(
           children: [
-            Container(
+            Image.asset(
+              'assets/images/logo.png',
               width: 32,
               height: 38,
-              decoration: BoxDecoration(
-                color: AppColors.primary,
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: const Icon(Icons.sync_rounded, size: 20, color: Colors.white),
+              fit: BoxFit.contain,
             ),
             const SizedBox(width: 12),
             Text(

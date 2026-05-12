@@ -2,12 +2,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../shared/models/notification_model.dart';
 
+import '../auth/auth_provider.dart';
+
 final notificationsProvider = StateNotifierProvider<NotificationsNotifier, AsyncValue<List<NotificationModel>>>((ref) {
-  return NotificationsNotifier();
+  final userId = ref.watch(userIdProvider);
+  return NotificationsNotifier(userId);
 });
 
 class NotificationsNotifier extends StateNotifier<AsyncValue<List<NotificationModel>>> {
-  NotificationsNotifier() : super(const AsyncValue.loading()) {
+  final String? userId;
+  NotificationsNotifier(this.userId) : super(const AsyncValue.loading()) {
     load();
     _subscribe();
   }
@@ -16,8 +20,7 @@ class NotificationsNotifier extends StateNotifier<AsyncValue<List<NotificationMo
   RealtimeChannel? _channel;
 
   Future<void> load() async {
-    final user = _supabase.auth.currentUser;
-    if (user == null) {
+    if (userId == null) {
       state = const AsyncValue.data([]);
       return;
     }
@@ -26,7 +29,7 @@ class NotificationsNotifier extends StateNotifier<AsyncValue<List<NotificationMo
       final response = await _supabase
           .from('notifications')
           .select()
-          .eq('user_id', user.id)
+          .eq('user_id', userId!)
           .order('created_at', ascending: false);
       
       state = AsyncValue.data((response as List).map((n) => NotificationModel.fromJson(n)).toList());
@@ -36,11 +39,10 @@ class NotificationsNotifier extends StateNotifier<AsyncValue<List<NotificationMo
   }
 
   void _subscribe() {
-    final user = _supabase.auth.currentUser;
-    if (user == null) return;
+    if (userId == null) return;
 
     _channel = _supabase
-        .channel('public:notifications:user_id=eq.${user.id}')
+        .channel('public:notifications:user_id=eq.$userId')
         .onPostgresChanges(
           event: PostgresChangeEvent.all,
           schema: 'public',
@@ -48,10 +50,10 @@ class NotificationsNotifier extends StateNotifier<AsyncValue<List<NotificationMo
           filter: PostgresChangeFilter(
             type: PostgresChangeFilterType.eq,
             column: 'user_id',
-            value: user.id,
+            value: userId!,
           ),
           callback: (payload) {
-            print('Postgres change received: ${payload.eventType}');
+            // Handle Postgres change
             if (payload.eventType == PostgresChangeEvent.insert) {
               final newNotif = NotificationModel.fromJson(payload.newRecord);
               state.whenData((currentList) {

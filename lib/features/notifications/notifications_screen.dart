@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme.dart';
+import '../../shared/models/notification_model.dart';
 import 'notifications_provider.dart';
 
 class NotificationsScreen extends ConsumerStatefulWidget {
@@ -127,7 +128,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> with 
       padding: const EdgeInsets.symmetric(vertical: 8),
       itemCount: list.length,
       itemBuilder: (context, index) {
-        final n = list[index];
+        final n = list[index] as NotificationModel;
         return _NotifItem(n: n, ref: ref);
       },
     );
@@ -135,7 +136,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> with 
 }
 
 class _NotifItem extends StatelessWidget {
-  final dynamic n;
+  final NotificationModel n;
   final WidgetRef ref;
   const _NotifItem({required this.n, required this.ref});
 
@@ -181,7 +182,7 @@ class _NotifItem extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    n.body,
+                    n.message,
                     style: GoogleFonts.inter(fontSize: 13, color: AppColors.textSecondary),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,

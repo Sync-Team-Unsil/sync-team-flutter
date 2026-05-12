@@ -1,24 +1,26 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../shared/models/team.dart';
+import '../auth/auth_provider.dart';
 
 final myTeamsProvider = FutureProvider<List<Team>>((ref) async {
+  final userId = ref.watch(userIdProvider);
+  if (userId == null) return [];
+  
   final supabase = Supabase.instance.client;
-  final user = supabase.auth.currentUser;
-  if (user == null) return [];
 
   // Query 1: Teams I created
   final createdResponse = await supabase
       .from('teams')
       .select('*, team_members(*, profiles(*))')
-      .eq('created_by', user.id);
+      .eq('created_by', userId);
 
   // Query 2: Teams I am a member of
   final joinedResponse = await supabase
       .from('team_members')
       .select('teams(*, team_members(*, profiles(*)))')
-      .eq('user_id', user.id)
-      .not('teams.created_by', 'eq', user.id); // Avoid duplicates if they are already in Query 1
+      .eq('user_id', userId)
+      .not('teams.created_by', 'eq', userId);
 
   final createdTeams = (createdResponse as List).map((t) => Team.fromJson(t)).toList();
   final joinedTeams = (joinedResponse as List)
@@ -30,23 +32,22 @@ final myTeamsProvider = FutureProvider<List<Team>>((ref) async {
 });
 
 final availableTeamsProvider = FutureProvider<List<Team>>((ref) async {
+  final userId = ref.watch(userIdProvider);
   final supabase = Supabase.instance.client;
-  final user = supabase.auth.currentUser;
   
   var query = supabase.from('teams').select('*, team_members(*, profiles(*))');
   
-  if (user != null) {
+  if (userId != null) {
     // Exclude teams I'm already in or created
-    // Note: Simple filtering for demo, in production use a better SQL query or RPC
   }
 
   final response = await query.order('created_at', ascending: false).limit(20);
   final allTeams = (response as List).map((t) => Team.fromJson(t)).toList();
   
-  if (user != null) {
+  if (userId != null) {
     return allTeams.where((t) {
-      final isCreator = t.createdBy == user.id;
-      final isMember = t.members?.any((m) => m.userId == user.id) ?? false;
+      final isCreator = t.createdBy == userId;
+      final isMember = t.members?.any((m) => m.userId == userId) ?? false;
       return !isCreator && !isMember;
     }).toList();
   }
@@ -56,6 +57,26 @@ final availableTeamsProvider = FutureProvider<List<Team>>((ref) async {
 
 final teamDetailProvider = FutureProvider.family<Team?, String>((ref, id) async {
   final supabase = Supabase.instance.client;
+  
+  // Realtime subscription to invalidate on changes
+  final channel = supabase.channel('team_detail_$id').onPostgresChanges(
+    event: PostgresChangeEvent.all,
+    schema: 'public',
+    table: 'team_members',
+    filter: PostgresChangeFilter(
+      type: PostgresChangeFilterType.eq,
+      column: 'team_id',
+      value: id,
+    ),
+    callback: (payload) {
+      ref.invalidateSelf();
+    },
+  ).subscribe();
+
+  ref.onDispose(() {
+    supabase.removeChannel(channel);
+  });
+
   final response = await supabase
       .from('teams')
       .select('*, team_members(*, profiles(*))')
@@ -112,6 +133,36 @@ class TeamsService {
   Future<void> applyToTeam(String teamId) async {
     final user = _supabase.auth.currentUser;
     if (user == null) throw 'User not authenticated';
+
+    // 1. Check if user is already in 2 teams (created or accepted)
+    final createdResponse = await _supabase
+        .from('teams')
+        .select('id')
+        .eq('created_by', user.id);
+    
+    final joinedResponse = await _supabase
+        .from('team_members')
+        .select('team_id')
+        .eq('user_id', user.id)
+        .eq('status', 'accepted');
+
+    final totalTeams = (createdResponse as List).length + (joinedResponse as List).length;
+
+    if (totalTeams >= 2) {
+      throw 'Anda sudah mencapai batas maksimal 2 tim. Silakan keluar dari salah satu tim untuk bergabung dengan tim baru.';
+    }
+
+    // 2. Check if already applied
+    final existing = await _supabase
+        .from('team_members')
+        .select()
+        .eq('team_id', teamId)
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+    if (existing != null) {
+      throw 'Anda sudah mengirimkan pendaftaran ke tim ini.';
+    }
 
     await _supabase.from('team_members').insert({
       'team_id': teamId,

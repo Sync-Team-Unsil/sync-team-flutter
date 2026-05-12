@@ -45,6 +45,9 @@ class Team {
     final accepted = members?.where((m) => m.status == 'accepted').length ?? 0;
     return '$accepted/$maxMembers';
   }
+  int get currentMembers => members?.where((m) => m.status == 'accepted').length ?? 0;
+
+  bool isOwner(String userId) => createdBy == userId;
 }
 
 class TeamMember {
@@ -75,6 +78,7 @@ class TeamMember {
     );
   }
 
-  String? get displayName => profile?.displayName;
-  String get initials => profile?.initials ?? '?';
+  String get displayName => profile?.displayName ?? 'User';
+  String get initials => profile?.initials ?? 'U';
+  String get role => profile?.role ?? 'Member';
 }

@@ -9,6 +9,10 @@ final profileProvider =
       return ProfileNotifier();
     });
 
+final userIdProvider = Provider<String?>((ref) {
+  return ref.watch(profileProvider).valueOrNull?.id;
+});
+
 class ProfileNotifier extends StateNotifier<AsyncValue<Profile?>> {
   ProfileNotifier() : super(const AsyncValue.loading()) {
     loadProfile();

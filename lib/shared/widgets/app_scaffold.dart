@@ -6,6 +6,14 @@ import '../../core/theme.dart';
 import '../../features/auth/auth_provider.dart';
 import '../../features/notifications/notifications_provider.dart';
 
+import '../../core/side_popup_provider.dart';
+import 'side_popups/notification_sidebar.dart';
+import 'side_popups/team_detail_sidebar.dart';
+import 'side_popups/create_team_sidebar.dart';
+import 'side_popups/manage_applicants_sidebar.dart';
+import 'side_popups/edit_profile_sidebar.dart';
+import 'notification_popup.dart';
+
 class AppScaffold extends ConsumerStatefulWidget {
   final Widget child;
 
@@ -17,8 +25,9 @@ class AppScaffold extends ConsumerStatefulWidget {
 
 class _AppScaffoldState extends ConsumerState<AppScaffold> {
   int _currentIndex = 0;
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
-  static const _routes = ['/home', '/teams', '/notifications', '/profile'];
+  static const _routes = ['/home', '/profile'];
 
   @override
   void didChangeDependencies() {
@@ -41,17 +50,36 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
   Widget build(BuildContext context) {
     final isWide = MediaQuery.of(context).size.width > 800;
     final unreadCount = ref.watch(unreadCountProvider);
+    final popupState = ref.watch(sidePopupProvider);
+
+    // Listen for popup requests (Now only for side drawers like Team Detail/Manage Applicants)
+    ref.listen(sidePopupProvider, (previous, next) {
+      if (next.type != SidePopupType.none && next.type != SidePopupType.notifications) {
+        _scaffoldKey.currentState?.openEndDrawer();
+      } else if (next.type == SidePopupType.notifications) {
+        _showNotificationPopup(context);
+      } else {
+        if (_scaffoldKey.currentState?.isEndDrawerOpen ?? false) {
+          Navigator.of(context).pop();
+        }
+      }
+    });
 
     if (isWide) {
-      return _buildDesktopLayout(unreadCount);
+      return _buildDesktopLayout(unreadCount, popupState);
     }
-    return _buildMobileLayout(unreadCount);
+    return _buildMobileLayout(unreadCount, popupState);
   }
 
   // ─── DESKTOP LAYOUT ───
-  Widget _buildDesktopLayout(int unreadCount) {
+  Widget _buildDesktopLayout(int unreadCount, SidePopupState popupState) {
     return Scaffold(
+      key: _scaffoldKey,
       backgroundColor: AppColors.background,
+      endDrawer: _buildSidePopup(popupState),
+      onEndDrawerChanged: (isOpen) {
+        if (!isOpen) ref.read(sidePopupProvider.notifier).hide();
+      },
       body: Row(
         children: [
           // Sidebar
@@ -70,11 +98,13 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
                 Container(
                   width: 42,
                   height: 42,
+                  padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    gradient: AppColors.gradientPrimary,
+                    color: Colors.white,
                     borderRadius: BorderRadius.circular(5),
+                    border: Border.all(color: AppColors.divider),
                   ),
-                  child: const Icon(Icons.sync_rounded, color: Colors.white, size: 24),
+                  child: Image.asset('assets/images/logo.png', fit: BoxFit.contain),
                 ),
                 const SizedBox(height: 32),
                 // Nav items
@@ -87,28 +117,11 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
                 ),
                 const SizedBox(height: 8),
                 _SideNavItem(
-                  icon: Icons.groups_outlined,
-                  activeIcon: Icons.groups_rounded,
-                  label: 'Teams',
-                  isActive: _currentIndex == 1,
-                  onTap: () => _onTap(1),
-                ),
-                const SizedBox(height: 8),
-                _SideNavItem(
-                  icon: Icons.notifications_outlined,
-                  activeIcon: Icons.notifications_rounded,
-                  label: 'Notif',
-                  isActive: _currentIndex == 2,
-                  badge: unreadCount,
-                  onTap: () => _onTap(2),
-                ),
-                const SizedBox(height: 8),
-                _SideNavItem(
                   icon: Icons.person_outline,
                   activeIcon: Icons.person_rounded,
                   label: 'Profile',
-                  isActive: _currentIndex == 3,
-                  onTap: () => _onTap(3),
+                  isActive: _currentIndex == 1,
+                  onTap: () => _onTap(1),
                 ),
                 const Spacer(),
                 IconButton(
@@ -120,16 +133,81 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
               ],
             ),
           ),
-          Expanded(child: widget.child),
+          Expanded(
+            child: Column(
+              children: [
+                // Navbar (Top Bar)
+                Container(
+                  height: 64,
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  decoration: const BoxDecoration(
+                    color: AppColors.surface,
+                    border: Border(bottom: BorderSide(color: AppColors.divider)),
+                  ),
+                  child: Row(
+                    children: [
+                      Text(
+                        _currentIndex == 0 ? 'Dashboard' : 'Profile',
+                        style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600),
+                      ),
+                      const Spacer(),
+                      // Notif Icon
+                      Stack(
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.notifications_outlined, color: AppColors.textSecondary),
+                            onPressed: () => _showNotificationPopup(context),
+                          ),
+                          if (unreadCount > 0)
+                            Positioned(
+                              right: 12,
+                              top: 12,
+                              child: Container(
+                                width: 8,
+                                height: 8,
+                                decoration: const BoxDecoration(color: AppColors.error, shape: BoxShape.circle),
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(width: 8),
+                      // Profile Mini
+                      const CircleAvatar(
+                        radius: 16,
+                        backgroundColor: AppColors.inputFill,
+                        child: Icon(Icons.person, size: 18, color: AppColors.textSecondary),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(child: widget.child),
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
 
   // ─── MOBILE LAYOUT ───
-  Widget _buildMobileLayout(int unreadCount) {
+  Widget _buildMobileLayout(int unreadCount, SidePopupState popupState) {
     return Scaffold(
+      key: _scaffoldKey,
       backgroundColor: AppColors.background,
+      endDrawer: _buildSidePopup(popupState),
+      onEndDrawerChanged: (isOpen) {
+        if (!isOpen) ref.read(sidePopupProvider.notifier).hide();
+      },
+      appBar: AppBar(
+        title: Text(_currentIndex == 0 ? 'Dashboard' : 'Profile'),
+        centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.notifications_outlined),
+            onPressed: () => _showNotificationPopup(context),
+          ),
+        ],
+      ),
       body: widget.child,
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
@@ -156,26 +234,11 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
                   onTap: () => _onTap(0),
                 ),
                 _BottomNavItem(
-                  icon: Icons.groups_outlined,
-                  activeIcon: Icons.groups_rounded,
-                  label: 'Teams',
-                  isActive: _currentIndex == 1,
-                  onTap: () => _onTap(1),
-                ),
-                _BottomNavItem(
-                  icon: Icons.notifications_outlined,
-                  activeIcon: Icons.notifications_rounded,
-                  label: 'Notification',
-                  isActive: _currentIndex == 2,
-                  badge: unreadCount,
-                  onTap: () => _onTap(2),
-                ),
-                _BottomNavItem(
                   icon: Icons.person_outline,
                   activeIcon: Icons.person_rounded,
                   label: 'Profile',
-                  isActive: _currentIndex == 3,
-                  onTap: () => _onTap(3),
+                  isActive: _currentIndex == 1,
+                  onTap: () => _onTap(1),
                 ),
               ],
             ),
@@ -183,6 +246,42 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
         ),
       ),
     );
+  }
+
+  void _showNotificationPopup(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.2),
+      builder: (context) => const Center(
+        child: NotificationPopup(),
+      ),
+    );
+  }
+
+  Widget _buildSidePopup(SidePopupState state) {
+    return Drawer(
+      width: 400,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+      child: _getPopupContent(state),
+    );
+  }
+
+  Widget _getPopupContent(SidePopupState state) {
+    switch (state.type) {
+      case SidePopupType.notifications:
+        return const NotificationSidebar();
+      case SidePopupType.createTeam:
+        return const CreateTeamSidebar();
+      case SidePopupType.teamDetail:
+        return TeamDetailSidebar(teamId: state.data as String);
+      case SidePopupType.manageApplicants:
+        return ManageApplicantsSidebar(teamId: state.data as String);
+      case SidePopupType.editProfile:
+        return const EditProfileSidebar();
+      default:
+        return const SizedBox.shrink();
+    }
   }
 
   void _handleLogout(BuildContext context, WidgetRef ref) async {
@@ -197,7 +296,6 @@ class _BottomNavItem extends StatelessWidget {
   final IconData activeIcon;
   final String label;
   final bool isActive;
-  final int badge;
   final VoidCallback onTap;
 
   const _BottomNavItem({
@@ -205,7 +303,6 @@ class _BottomNavItem extends StatelessWidget {
     required this.activeIcon,
     required this.label,
     required this.isActive,
-    this.badge = 0,
     required this.onTap,
   });
 
@@ -231,24 +328,6 @@ class _BottomNavItem extends StatelessWidget {
                     size: 24,
                   ),
                 ),
-                if (badge > 0)
-                  Positioned(
-                    right: -8,
-                    top: -4,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                      decoration: BoxDecoration(
-                        color: AppColors.error,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      constraints: const BoxConstraints(minWidth: 16),
-                      child: Text(
-                        '$badge',
-                        style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  ),
               ],
             ),
             const SizedBox(height: 4),
@@ -273,7 +352,6 @@ class _SideNavItem extends StatelessWidget {
   final IconData activeIcon;
   final String label;
   final bool isActive;
-  final int badge;
   final VoidCallback onTap;
 
   const _SideNavItem({
@@ -281,7 +359,6 @@ class _SideNavItem extends StatelessWidget {
     required this.activeIcon,
     required this.label,
     required this.isActive,
-    this.badge = 0,
     required this.onTap,
   });
 
@@ -305,24 +382,6 @@ class _SideNavItem extends StatelessWidget {
               color: isActive ? AppColors.primary : AppColors.textMuted,
               size: 24,
             ),
-            if (badge > 0)
-              Positioned(
-                right: 8,
-                top: 8,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                  decoration: BoxDecoration(
-                    color: AppColors.error,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  constraints: const BoxConstraints(minWidth: 16),
-                  child: Text(
-                    '$badge',
-                    style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-              ),
           ],
         ),
       ),

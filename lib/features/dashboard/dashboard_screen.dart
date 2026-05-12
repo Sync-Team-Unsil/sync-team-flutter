@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/theme.dart';
+import '../../core/side_popup_provider.dart';
 import '../../shared/models/team.dart';
-import '../auth/auth_provider.dart';
 import 'teams_provider.dart';
 
 class DashboardScreen extends ConsumerWidget {
@@ -12,9 +13,9 @@ class DashboardScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final profile = ref.watch(profileProvider);
     final myTeams = ref.watch(myTeamsProvider);
     final available = ref.watch(availableTeamsProvider);
+    final userId = Supabase.instance.client.auth.currentUser?.id;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -23,313 +24,163 @@ class DashboardScreen extends ConsumerWidget {
         onRefresh: () async {
           ref.invalidate(myTeamsProvider);
           ref.invalidate(availableTeamsProvider);
-          ref.read(profileProvider.notifier).loadProfile();
         },
-        child: CustomScrollView(
-          slivers: [
-            // ── Profile Header Card ──
-            SliverToBoxAdapter(
-              child: profile.when(
-                data: (p) => _ProfileHeaderCard(p: p),
-                loading: () => const Padding(
-                  padding: EdgeInsets.all(16),
-                  child: Divider(color: AppColors.divider, height: 1),
-                ),
-                error: (e, _) => Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: AppColors.error.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(5),
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(child: Text('Error: $e', style: const TextStyle(color: AppColors.error))),
-                        TextButton(
-                          onPressed: () async {
-                            await ref.read(profileProvider.notifier).signOut();
-                            if (context.mounted) context.go('/auth');
-                          },
-                          child: const Text('Logout', style: TextStyle(color: AppColors.error)),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-
-            // ── My Teams Section ──
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-                child: _SectionHeader(title: 'Teams', onSeeAll: () => context.go('/teams')),
-              ),
-            ),
-            SliverToBoxAdapter(
-              child: myTeams.when(
-                data: (teams) => teams.isEmpty
-                    ? _EmptyTeamCard()
-                    : _MyTeamsHorizontalList(teams: teams),
-                loading: () => const SizedBox(
-                  height: 140,
-                  child: Center(child: CircularProgressIndicator(color: AppColors.primary)),
-                ),
-                error: (e, _) => Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Text('Error: $e'),
-                ),
-              ),
-            ),
-
-            // ── Available Teams Section ──
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 24, 16, 12),
-                child: _SectionHeader(title: 'List Available Teams', onSeeAll: () => context.go('/teams')),
-              ),
-            ),
-            available.when(
-              data: (teams) => teams.isEmpty
-                  ? const SliverToBoxAdapter(
-                      child: Padding(
-                        padding: EdgeInsets.all(16),
-                        child: Center(child: Text('No available teams', style: TextStyle(color: AppColors.textMuted))),
-                      ),
-                    )
-                  : SliverPadding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      sliver: SliverList(
-                        delegate: SliverChildBuilderDelegate(
-                          (context, index) => Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: _AvailableTeamCard(team: teams[index]),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ── Teams Section (Joined/Created) ──
+              _SectionTitle(title: 'Teams'),
+              const SizedBox(height: 24),
+              myTeams.when(
+                data: (teams) {
+                  if (teams.isEmpty) return _EmptyTeamsPlaceholder();
+                  // Max 2 teams as per requirement
+                  final displayTeams = teams.take(2).toList();
+                  return Row(
+                    children: [
+                      for (var team in displayTeams)
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.only(right: 16),
+                            child: _JoinedTeamCard(team: team, userId: userId ?? ''),
                           ),
-                          childCount: teams.length,
                         ),
-                      ),
-                    ),
-              loading: () => const SliverToBoxAdapter(child: Center(child: CircularProgressIndicator(color: AppColors.primary))),
-              error: (e, _) => SliverToBoxAdapter(child: Text('Error: $e')),
-            ),
-            const SliverToBoxAdapter(child: SizedBox(height: 24)),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ─── PROFILE HEADER CARD (Purple gradient) ───
-class _ProfileHeaderCard extends StatelessWidget {
-  final dynamic p;
-  const _ProfileHeaderCard({required this.p});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      child: Container(
-        height: 180,
-        decoration: BoxDecoration(
-          gradient: AppColors.gradientCard,
-          borderRadius: BorderRadius.circular(5),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.primary.withValues(alpha: 0.3),
-              blurRadius: 15,
-              offset: const Offset(0, 8),
-            ),
-          ],
-        ),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                // Avatar
-                CircleAvatar(
-                  radius: 28,
-                  backgroundColor: Colors.white.withValues(alpha: 0.25),
-                  child: Text(
-                    p?.initials ?? 'U',
-                    style: GoogleFonts.inter(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
-                  ),
-                ),
-                const SizedBox(width: 14),
-                // Name + email
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        p?.displayName ?? 'User',
-                        style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        p?.username != null ? '${p!.username}' : '',
-                        style: GoogleFonts.inter(fontSize: 13, color: Colors.white.withValues(alpha: 0.8)),
-                      ),
+                      if (displayTeams.length < 2) const Spacer(),
                     ],
-                  ),
-                ),
-                // Edit icon
-                Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: IconButton(
-                    icon: const Icon(Icons.edit_outlined, color: Colors.white, size: 18),
-                    padding: EdgeInsets.zero,
-                    onPressed: () => GoRouter.of(context).go('/profile'),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            // Stats row
-            Row(
-              children: [
-                _StatItem(label: 'teams:', value: '—'),
-                const SizedBox(width: 48),
-                _StatItem(label: 'ratings:', value: '5.0'),
-                const SizedBox(width: 48),
-                _StatItem(label: 'role', value: p?.role ?? 'Member'),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _StatItem extends StatelessWidget {
-  final String label;
-  final String value;
-  const _StatItem({required this.label, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: GoogleFonts.inter(fontSize: 12, color: Colors.white.withValues(alpha: 0.7))),
-        const SizedBox(height: 2),
-        Text(value, style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white)),
-      ],
-    );
-  }
-}
-
-// ─── SECTION HEADER ───
-class _SectionHeader extends StatelessWidget {
-  final String title;
-  final VoidCallback onSeeAll;
-  const _SectionHeader({required this.title, required this.onSeeAll});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(title, style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
-        GestureDetector(
-          onTap: onSeeAll,
-          child: Text('see all', style: GoogleFonts.inter(fontSize: 14, color: AppColors.primary, fontWeight: FontWeight.w500)),
-        ),
-      ],
-    );
-  }
-}
-
-// ─── MY TEAMS HORIZONTAL LIST ───
-class _MyTeamsHorizontalList extends StatelessWidget {
-  final List<Team> teams;
-  const _MyTeamsHorizontalList({required this.teams});
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 160,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        itemCount: teams.length,
-        itemBuilder: (context, index) {
-          final team = teams[index];
-          return GestureDetector(
-            onTap: () => context.push('/team/${team.id}'),
-            child: Container(
-              width: 300,
-              margin: const EdgeInsets.only(right: 12),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(5),
-                border: Border.all(color: AppColors.divider),
-                boxShadow: [
-                  BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 2)),
-                ],
+                  );
+                },
+                loading: () => const _LoadingPlaceholder(height: 200),
+                error: (e, _) => Text('Error: $e'),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+
+              const SizedBox(height: 48),
+
+              // ── List Available Teams Section ──
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Text(team.name, style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary), maxLines: 1, overflow: TextOverflow.ellipsis),
-                      ),
-                      Text(team.memberCountDisplay, style: GoogleFonts.inter(fontSize: 14, color: AppColors.primary, fontWeight: FontWeight.w600)),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(team.description ?? '', style: GoogleFonts.inter(fontSize: 13, color: AppColors.textSecondary), maxLines: 2, overflow: TextOverflow.ellipsis),
-                  const Spacer(),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      // Member avatars placeholder
-                      const SizedBox(),
-                      Text('ongoing', style: GoogleFonts.inter(fontSize: 13, color: AppColors.success, fontWeight: FontWeight.w500)),
-                    ],
+                  _SectionTitle(title: 'List Available Teams'),
+                  TextButton(
+                    onPressed: () => context.go('/teams'),
+                    child: Text('see all', style: GoogleFonts.poppins(color: AppColors.primary, fontWeight: FontWeight.w500)),
                   ),
                 ],
               ),
-            ),
-          );
-        },
+              const SizedBox(height: 24),
+              available.when(
+                data: (teams) => teams.isEmpty
+                    ? const Center(child: Text('No available teams'))
+                    : Column(
+                        children: teams.map((t) => Padding(
+                          padding: const EdgeInsets.only(bottom: 16),
+                          child: _AvailableTeamCard(team: t),
+                        )).toList(),
+                      ),
+                loading: () => const _LoadingPlaceholder(height: 100),
+                error: (e, _) => Text('Error: $e'),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
 }
 
-// ─── AVAILABLE TEAM CARD ───
-class _AvailableTeamCard extends StatelessWidget {
-  final Team team;
-  const _AvailableTeamCard({required this.team});
+class _SectionTitle extends StatelessWidget {
+  final String title;
+  const _SectionTitle({required this.title});
 
   @override
   Widget build(BuildContext context) {
-    final daysSince = DateTime.now().difference(team.createdAt).inDays;
-    final timeAgo = daysSince == 0 ? 'Hari ini' : 'Diposting $daysSince Hari yang lalu';
+    return Text(
+      title,
+      style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.w500, color: const Color(0xFF344054)),
+    );
+  }
+}
 
-    return GestureDetector(
-      onTap: () => context.push('/team/${team.id}'),
+class _EmptyTeamsPlaceholder extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 24),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF9F5FF),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFFE9D7FE)),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 160,
+            height: 120,
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.05),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(Icons.groups_outlined, size: 64, color: AppColors.primary),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            'Belum ada tim yang diikuti',
+            style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600, color: const Color(0xFF1D2939)),
+          ),
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32),
+            child: Text(
+              'Cari tim yang tersedia di bawah atau buat tim barumu sendiri untuk mulai berkolaborasi.',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.poppins(fontSize: 14, color: const Color(0xFF667085)),
+            ),
+          ),
+          const SizedBox(height: 32),
+          ElevatedButton.icon(
+            onPressed: () => ref.read(sidePopupProvider.notifier).show(SidePopupType.createTeam),
+            icon: const Icon(Icons.add, color: Colors.white),
+            label: const Text('Buat Tim Sekarang'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _JoinedTeamCard extends ConsumerWidget {
+  final Team team;
+  final String userId;
+  const _JoinedTeamCard({required this.team, required this.userId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isOwner = team.isOwner(userId);
+    final bgColor = isOwner ? const Color(0xFFFFEDD5) : const Color(0xFFDCFCE7);
+    final borderColor = isOwner ? const Color(0xFFFED7AA) : const Color(0xFFBBF7D0);
+    final statusColor = isOwner ? const Color(0xFFF97316) : const Color(0xFF12B76A);
+
+    return InkWell(
+      onTap: () => ref.read(sidePopupProvider.notifier).show(
+        SidePopupType.teamDetail,
+        data: team.id,
+      ),
       child: Container(
         padding: const EdgeInsets.all(16),
+        height: 240,
         decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(5),
-          border: Border.all(color: AppColors.divider),
-          boxShadow: [
-            BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 6, offset: const Offset(0, 2)),
-          ],
+          color: bgColor,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: borderColor),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -338,25 +189,38 @@ class _AvailableTeamCard extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Expanded(
-                  child: Text(team.name, style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+                  child: Text(
+                    isOwner ? 'Tim ${team.name}' : team.name,
+                    style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w500, color: const Color(0xFF334155)),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
-                Text(team.memberCountDisplay, style: GoogleFonts.inter(fontSize: 14, color: AppColors.primary, fontWeight: FontWeight.w600)),
+                Text(
+                  '${team.currentMembers}/${team.maxMembers}',
+                  style: GoogleFonts.poppins(fontSize: 14, color: statusColor),
+                ),
               ],
             ),
-            const SizedBox(height: 8),
-            Text(team.description ?? '', style: GoogleFonts.inter(fontSize: 13, color: AppColors.textSecondary), maxLines: 2, overflow: TextOverflow.ellipsis),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
+            Expanded(
+              child: Text(
+                team.description ?? '',
+                style: GoogleFonts.poppins(fontSize: 14, color: const Color(0xFF64748B)),
+                maxLines: 4,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const SizedBox(height: 16),
             Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                if (team.tags.isNotEmpty)
-                  ...team.tags.take(3).map((t) => Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: Text('# $t', style: GoogleFonts.inter(fontSize: 12, color: AppColors.primary, fontWeight: FontWeight.w500)),
-                  )),
-                if (team.tags.length > 3)
-                  Text('${team.tags.length - 3}+', style: GoogleFonts.inter(fontSize: 12, color: AppColors.textMuted)),
-                const Spacer(),
-                Text(timeAgo, style: GoogleFonts.inter(fontSize: 12, color: AppColors.textMuted)),
+                // Avatar Stack
+                _AvatarStack(count: team.currentMembers),
+                Text(
+                  'ongoing',
+                  style: GoogleFonts.poppins(fontSize: 14, color: statusColor),
+                ),
               ],
             ),
           ],
@@ -366,22 +230,116 @@ class _AvailableTeamCard extends StatelessWidget {
   }
 }
 
-// ─── EMPTY STATE ───
-class _EmptyTeamCard extends StatelessWidget {
+class _AvailableTeamCard extends ConsumerWidget {
+  final Team team;
+  const _AvailableTeamCard({required this.team});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return InkWell(
+      onTap: () => ref.read(sidePopupProvider.notifier).show(SidePopupType.teamDetail, data: team.id),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF9F5FF),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: const Color(0xFFE9D7FE)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  team.name,
+                  style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w500, color: const Color(0xFF334155)),
+                ),
+                Text(
+                  '${team.currentMembers}/${team.maxMembers}',
+                  style: GoogleFonts.poppins(fontSize: 14, color: AppColors.primary),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              team.description ?? '',
+              style: GoogleFonts.poppins(fontSize: 14, color: const Color(0xFF64748B)),
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                if (team.tags.isNotEmpty)
+                  ...team.tags.take(2).map((tag) => Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: Text('# $tag', style: GoogleFonts.poppins(fontSize: 14, color: AppColors.primary)),
+                  )),
+                if (team.tags.length > 2)
+                  Text('${team.tags.length - 2}+', style: GoogleFonts.poppins(fontSize: 14, color: AppColors.primary)),
+                const Spacer(),
+                Text(
+                  'Diposting ${DateTime.now().difference(team.createdAt).inDays} Hari yang lalu',
+                  style: GoogleFonts.poppins(fontSize: 12, color: AppColors.textMuted),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AvatarStack extends StatelessWidget {
+  final int count;
+  const _AvatarStack({required this.count});
+
+  @override
+  Widget build(BuildContext context) {
+    final displayCount = count > 4 ? 4 : count;
+    if (displayCount == 0) return const SizedBox.shrink();
+    
+    return SizedBox(
+      height: 48,
+      width: (displayCount - 1) * 30.0 + 48,
+      child: Stack(
+        children: List.generate(
+          displayCount,
+          (index) => Positioned(
+            left: index * 30.0,
+            child: Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white, width: 2),
+                color: AppColors.inputFill,
+              ),
+              child: const Icon(Icons.person, size: 24, color: Colors.grey),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _LoadingPlaceholder extends StatelessWidget {
+  final double height;
+  const _LoadingPlaceholder({required this.height});
+
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(left: 16),
-      width: 280,
-      padding: const EdgeInsets.all(24),
+      width: double.infinity,
+      height: height,
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(5),
-        border: Border.all(color: AppColors.divider),
+        color: AppColors.inputFill,
+        borderRadius: BorderRadius.circular(8),
       ),
-      child: Center(
-        child: Text("You haven't joined any teams yet.", style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 14)),
-      ),
+      child: const Center(child: CircularProgressIndicator()),
     );
   }
 }

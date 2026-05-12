@@ -27,6 +27,10 @@ class AppColors {
   static const Color warning = Color(0xFFF59E0B); // Added back
   static const Color error = Color(0xFFEF4444);
 
+  // Slate colors for light backgrounds/text
+  static const Color slate500 = Color(0xFF64748B);
+  static const Color slate700 = Color(0xFF334155);
+
   // Tags (Added back with Figma-harmonized colors)
   static const Color tagBg = Color(0xFFF4F3FF);
   static const Color tagText = Color(0xFF9E77ED);

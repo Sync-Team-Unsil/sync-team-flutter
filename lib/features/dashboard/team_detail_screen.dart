@@ -42,7 +42,7 @@ class TeamDetailScreen extends ConsumerWidget {
                       )
                     : const SizedBox.shrink(),
                 loading: () => const SizedBox.shrink(),
-                error: (_, __) => const SizedBox.shrink(),
+                error: (_, _) => const SizedBox.shrink(),
               ),
               IconButton(
                 icon: const Icon(Icons.refresh_rounded, color: Colors.white),
@@ -131,13 +131,21 @@ class TeamDetailScreen extends ConsumerWidget {
                   SizedBox(
                     width: double.infinity,
                     height: 56,
-                    child: ElevatedButton(
-                      onPressed: (status == null || status == 'none') ? () => _apply(context, ref) : null,
-                      child: Text(
-                        status == 'pending' ? 'Application Pending' : 
-                        status == 'accepted' ? 'Already in Team' : 'Apply Now'
-                      ),
-                    ),
+                    child: status == 'pending' 
+                      ? OutlinedButton(
+                          onPressed: () => _cancelApplication(context, ref),
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: AppColors.error),
+                            foregroundColor: AppColors.error,
+                          ),
+                          child: const Text('Cancel Application'),
+                        )
+                      : ElevatedButton(
+                          onPressed: (status == null || status == 'none') ? () => _apply(context, ref) : null,
+                          child: Text(
+                            status == 'accepted' ? 'Already in Team' : 'Apply Now'
+                          ),
+                        ),
                   ),
                 ],
                 const SizedBox(height: 40),
@@ -157,6 +165,20 @@ class TeamDetailScreen extends ConsumerWidget {
       ref.invalidate(userTeamStatusProvider(teamId));
       ref.invalidate(teamDetailProvider(teamId));
       if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Application sent!')));
+    } catch (e) {
+      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+    }
+  }
+
+  Future<void> _cancelApplication(BuildContext context, WidgetRef ref) async {
+    try {
+      final userId = Supabase.instance.client.auth.currentUser?.id;
+      if (userId == null) return;
+      
+      await ref.read(teamsServiceProvider).rejectMember(teamId, userId);
+      ref.invalidate(userTeamStatusProvider(teamId));
+      ref.invalidate(teamDetailProvider(teamId));
+      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Application cancelled.')));
     } catch (e) {
       if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
     }
@@ -231,7 +253,7 @@ class _ApplicantCard extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(member.displayName ?? 'Unknown', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
+                Text(member.displayName, style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
                 Text('Pending', style: GoogleFonts.poppins(fontSize: 12, color: AppColors.warning)),
               ],
             ),
@@ -261,7 +283,7 @@ class _MemberItem extends StatelessWidget {
         backgroundColor: AppColors.inputFill,
         child: Text(member.initials, style: const TextStyle(color: AppColors.textPrimary)),
       ),
-      title: Text(member.displayName ?? 'Unknown', style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w500)),
+      title: Text(member.displayName, style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w500)),
       subtitle: Text('Member', style: GoogleFonts.poppins(fontSize: 12, color: AppColors.textMuted)),
     );
   }
