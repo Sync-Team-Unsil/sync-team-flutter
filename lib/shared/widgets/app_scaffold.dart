@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme.dart';
 import '../../features/auth/auth_provider.dart';
 import '../../features/notifications/notifications_provider.dart';
+import '../../core/connectivity_provider.dart';
 
 import '../../core/side_popup_provider.dart';
 import 'side_popups/notification_sidebar.dart';
@@ -75,57 +76,46 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
       }
     });
 
+    final connectivity = ref.watch(connectivityStatusProvider);
+    final isOffline = connectivity == ConnectivityStatus.isDisconnected;
+
     if (isWide) {
-      return _buildDesktopLayout(unreadCount, popupState);
+      return _buildDesktopLayout(unreadCount, popupState, isOffline);
     }
-    return _buildMobileLayout(unreadCount);
+    return _buildMobileLayout(unreadCount, isOffline);
+  }
+
+  Widget _buildOfflineBanner() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+      color: AppColors.error,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.wifi_off_rounded, color: Colors.white, size: 18),
+          const SizedBox(width: 8),
+          Text(
+            'Tidak ada koneksi internet. Beberapa fitur mungkin tidak berfungsi.',
+            style: GoogleFonts.inter(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500),
+          ),
+        ],
+      ),
+    );
   }
 
   // ─── MOBILE FULL-SCREEN POPUP ───
   void _showMobileFullScreen(BuildContext context, SidePopupState state) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (ctx) => Scaffold(
-          appBar: AppBar(
-            backgroundColor: AppColors.primary,
-            foregroundColor: Colors.white,
-            elevation: 0,
-            title: Text(
-              _getMobilePopupTitle(state.type),
-              style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 16),
-            ),
-            centerTitle: true,
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
-              onPressed: () {
-                Navigator.pop(ctx);
-                ref.read(sidePopupProvider.notifier).hide();
-              },
-            ),
-          ),
-          body: _getPopupContent(state),
-        ),
+        builder: (ctx) => _getPopupContent(state),
       ),
     );
   }
 
-  String _getMobilePopupTitle(SidePopupType type) {
-    switch (type) {
-      case SidePopupType.createTeam:
-        return 'Create new Team';
-      case SidePopupType.teamDetail:
-        return 'Detail Team';
-      case SidePopupType.manageApplicants:
-        return 'Manage Applicants';
-      case SidePopupType.editProfile:
-        return 'Edit Profile';
-      default:
-        return '';
-    }
-  }
 
   // ─── DESKTOP LAYOUT ───
-  Widget _buildDesktopLayout(int unreadCount, SidePopupState popupState) {
+  Widget _buildDesktopLayout(int unreadCount, SidePopupState popupState, bool isOffline) {
     return Scaffold(
       key: _scaffoldKey,
       backgroundColor: AppColors.background,
@@ -133,107 +123,119 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
       onEndDrawerChanged: (isOpen) {
         if (!isOpen) ref.read(sidePopupProvider.notifier).hide();
       },
-      body: Row(
+      body: Column(
         children: [
-          // Sidebar
-          Container(
-            width: 72,
-            decoration: const BoxDecoration(
-              color: AppColors.surface,
-              border: Border(
-                right: BorderSide(color: AppColors.divider, width: 1),
-              ),
-            ),
-            child: Column(
-              children: [
-                const SizedBox(height: 20),
-                // Logo
-                Container(
-                  width: 42,
-                  height: 42,
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(5),
-                    border: Border.all(color: AppColors.divider),
-                  ),
-                  child: Image.asset('assets/images/logo.png', fit: BoxFit.contain),
-                ),
-                const SizedBox(height: 32),
-                // Nav items
-                _SideNavItem(
-                  icon: Icons.home_outlined,
-                  activeIcon: Icons.home_rounded,
-                  label: 'Home',
-                  isActive: _currentIndex == 0,
-                  onTap: () => _onTap(0),
-                ),
-                const SizedBox(height: 8),
-                _SideNavItem(
-                  icon: Icons.person_outline,
-                  activeIcon: Icons.person_rounded,
-                  label: 'Profile',
-                  isActive: _currentIndex == 3,
-                  onTap: () => _onTap(3),
-                ),
-                const Spacer(),
-                IconButton(
-                  icon: const Icon(Icons.logout_rounded, color: AppColors.error, size: 22),
-                  onPressed: () => _handleLogout(context, ref),
-                  tooltip: 'Logout',
-                ),
-                const SizedBox(height: 20),
-              ],
-            ),
-          ),
+          if (isOffline) _buildOfflineBanner(),
           Expanded(
-            child: Column(
+            child: Row(
               children: [
-                // Navbar (Top Bar)
+                // Sidebar
                 Container(
-                  height: 64,
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  width: 72,
                   decoration: const BoxDecoration(
                     color: AppColors.surface,
-                    border: Border(bottom: BorderSide(color: AppColors.divider)),
+                    border: Border(
+                      right: BorderSide(color: AppColors.divider, width: 1),
+                    ),
                   ),
-                  child: Row(
+                  child: Column(
                     children: [
-                      Text(
-                        _currentIndex == 0 ? 'Dashboard' : 'Profile',
-                        style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600),
+                      const SizedBox(height: 20),
+                      // Logo
+                      Container(
+                        width: 42,
+                        height: 42,
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(5),
+                          border: Border.all(color: AppColors.divider),
+                        ),
+                        child: Image.asset('assets/images/logo.png', fit: BoxFit.contain),
+                      ),
+                      const SizedBox(height: 32),
+                      // Nav items
+                      _SideNavItem(
+                        icon: Icons.home_outlined,
+                        activeIcon: Icons.home_rounded,
+                        label: 'Home',
+                        isActive: _currentIndex == 0,
+                        onTap: () => _onTap(0),
+                      ),
+                      const SizedBox(height: 8),
+                      _SideNavItem(
+                        icon: Icons.person_outline,
+                        activeIcon: Icons.person_rounded,
+                        label: 'Profile',
+                        isActive: _currentIndex == 3,
+                        onTap: () => _onTap(3),
                       ),
                       const Spacer(),
-                      // Notif Icon
-                      Stack(
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.notifications_outlined, color: AppColors.textSecondary),
-                            onPressed: () => _showNotificationPopup(context),
-                          ),
-                          if (unreadCount > 0)
-                            Positioned(
-                              right: 12,
-                              top: 12,
-                              child: Container(
-                                width: 8,
-                                height: 8,
-                                decoration: const BoxDecoration(color: AppColors.error, shape: BoxShape.circle),
-                              ),
-                            ),
-                        ],
+                      IconButton(
+                        icon: const Icon(Icons.logout_rounded, color: AppColors.error, size: 22),
+                        onPressed: () => _handleLogout(context, ref),
+                        tooltip: 'Logout',
                       ),
-                      const SizedBox(width: 8),
-                      // Profile Mini
-                      const CircleAvatar(
-                        radius: 16,
-                        backgroundColor: AppColors.inputFill,
-                        child: Icon(Icons.person, size: 18, color: AppColors.textSecondary),
-                      ),
+                      const SizedBox(height: 20),
                     ],
                   ),
                 ),
-                Expanded(child: widget.child),
+                Expanded(
+                  child: Column(
+                    children: [
+                      // Navbar (Top Bar)
+                      Container(
+                        height: 64,
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        decoration: const BoxDecoration(
+                          color: AppColors.surface,
+                          border: Border(bottom: BorderSide(color: AppColors.divider)),
+                        ),
+                        child: Row(
+                          children: [
+                            Text(
+                              _currentIndex == 0 ? 'Dashboard' : 'Profile',
+                              style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600),
+                            ),
+                            const Spacer(),
+                            // Notif Icon
+                            Stack(
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.notifications_outlined, color: AppColors.textSecondary),
+                                  onPressed: () => _showNotificationPopup(context),
+                                ),
+                                if (unreadCount > 0)
+                                  Positioned(
+                                    right: 12,
+                                    top: 12,
+                                    child: Container(
+                                      width: 8,
+                                      height: 8,
+                                      decoration: const BoxDecoration(color: AppColors.error, shape: BoxShape.circle),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                            const SizedBox(width: 8),
+                            // Profile Mini
+                            CircleAvatar(
+                              radius: 16,
+                              backgroundColor: AppColors.inputFill,
+                              backgroundImage: ref.watch(profileProvider).valueOrNull?.avatarUrl != null
+                                  ? NetworkImage(ref.watch(profileProvider).valueOrNull!.avatarUrl!)
+                                  : null,
+                              child: ref.watch(profileProvider).valueOrNull?.avatarUrl == null
+                                  ? const Icon(Icons.person, size: 18, color: AppColors.textSecondary)
+                                  : null,
+                            ),
+                          ],
+                        ),
+                      ),
+                      Expanded(child: widget.child),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
@@ -243,11 +245,16 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
   }
 
   // ─── MOBILE LAYOUT ───
-  Widget _buildMobileLayout(int unreadCount) {
+  Widget _buildMobileLayout(int unreadCount, bool isOffline) {
     return Scaffold(
       key: _scaffoldKey,
       backgroundColor: AppColors.background,
-      body: widget.child,
+      body: Column(
+        children: [
+          if (isOffline) _buildOfflineBanner(),
+          Expanded(child: widget.child),
+        ],
+      ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           color: AppColors.surface,

@@ -32,6 +32,24 @@ final myTeamsProvider = FutureProvider<List<Team>>((ref) async {
   return [...createdTeams, ...joinedTeams]..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 });
 
+final pendingTeamsProvider = FutureProvider<List<Team>>((ref) async {
+  final userId = ref.watch(userIdProvider);
+  if (userId == null) return [];
+  
+  final supabase = Supabase.instance.client;
+
+  final response = await supabase
+      .from('team_members')
+      .select('teams(*, team_members(*, profiles(*)))')
+      .eq('user_id', userId)
+      .eq('status', 'pending');
+
+  return (response as List)
+      .where((m) => m['teams'] != null)
+      .map((m) => Team.fromJson(m['teams']))
+      .toList();
+});
+
 final availableTeamsProvider = FutureProvider<List<Team>>((ref) async {
   final userId = ref.watch(userIdProvider);
   final supabase = Supabase.instance.client;

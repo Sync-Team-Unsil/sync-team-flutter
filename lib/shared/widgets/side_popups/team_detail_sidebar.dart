@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/theme.dart';
 import '../../../features/dashboard/teams_provider.dart';
+import '../../../core/side_popup_provider.dart';
 
 class TeamDetailSidebar extends ConsumerWidget {
   final String teamId;
@@ -11,15 +12,91 @@ class TeamDetailSidebar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final isWide = MediaQuery.of(context).size.width > 800;
     final teamAsync = ref.watch(teamDetailProvider(teamId));
     final statusAsync = ref.watch(userTeamStatusProvider(teamId));
     final userId = Supabase.instance.client.auth.currentUser?.id;
 
+    if (!isWide) {
+      return _buildMobileLayout(context, ref, teamAsync, statusAsync, userId);
+    }
+    return _buildDesktopLayout(context, ref, teamAsync, statusAsync, userId);
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // MOBILE LAYOUT (Scaffold + AppBar + Refresh)
+  // ═══════════════════════════════════════════════════════════
+  Widget _buildMobileLayout(BuildContext context, WidgetRef ref, AsyncValue<dynamic> teamAsync, AsyncValue<dynamic> statusAsync, String? userId) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        backgroundColor: AppColors.primary,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        centerTitle: true,
+        title: Text('Detail Team', style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600)),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
+          onPressed: () {
+            Navigator.pop(context);
+            ref.read(sidePopupProvider.notifier).hide();
+          },
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh_rounded),
+            onPressed: () {
+              ref.invalidate(teamDetailProvider(teamId));
+              ref.invalidate(userTeamStatusProvider(teamId));
+            },
+          ),
+          teamAsync.when(
+            data: (team) {
+              if (team == null) return const SizedBox.shrink();
+              final isOwner = team.createdBy == userId;
+              final isMember = team.members?.any((m) => m.userId == userId && m.status == 'accepted') ?? false;
+
+              if (isOwner) {
+                return IconButton(
+                  icon: const Icon(Icons.delete_forever_outlined, color: Colors.white),
+                  onPressed: () => _confirmDisband(context, ref),
+                );
+              } else if (isMember) {
+                return IconButton(
+                  icon: const Icon(Icons.logout_rounded, color: Colors.white),
+                  onPressed: () => _confirmQuit(context, ref),
+                );
+              }
+              return const SizedBox.shrink();
+            },
+            loading: () => const SizedBox.shrink(),
+            error: (_, _) => const SizedBox.shrink(),
+          ),
+        ],
+      ),
+      body: RefreshIndicator(
+        onRefresh: () async {
+          ref.invalidate(teamDetailProvider(teamId));
+          ref.invalidate(userTeamStatusProvider(teamId));
+        },
+        child: teamAsync.when(
+          data: (team) => _buildContent(context, ref, team, statusAsync, userId),
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (e, _) => Center(child: Text('Error: $e')),
+        ),
+      ),
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // DESKTOP LAYOUT (Column with internal header for Drawer)
+  // ═══════════════════════════════════════════════════════════
+  Widget _buildDesktopLayout(BuildContext context, WidgetRef ref, AsyncValue<dynamic> teamAsync, AsyncValue<dynamic> statusAsync, String? userId) {
     return Container(
       color: Colors.white,
       child: Column(
         children: [
-          // Header
+          // Internal Header
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
             decoration: const BoxDecoration(
@@ -32,21 +109,15 @@ class TeamDetailSidebar extends ConsumerWidget {
                   onPressed: () => Navigator.pop(context),
                 ),
                 const SizedBox(width: 12),
-                Text(
-                  'Detail Team',
-                  style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
+                Text('Detail Team', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold)),
                 const Spacer(),
-                // Reload Button
                 IconButton(
                   icon: const Icon(Icons.refresh_rounded, color: AppColors.primary),
                   onPressed: () {
                     ref.invalidate(teamDetailProvider(teamId));
                     ref.invalidate(userTeamStatusProvider(teamId));
                   },
-                  tooltip: 'Reload',
                 ),
-                // Conditional Actions
                 teamAsync.when(
                   data: (team) {
                     if (team == null) return const SizedBox.shrink();
@@ -74,127 +145,9 @@ class TeamDetailSidebar extends ConsumerWidget {
               ],
             ),
           ),
-          // Content
           Expanded(
             child: teamAsync.when(
-              data: (team) {
-                if (team == null) return const Center(child: Text('Team not found'));
-                final status = statusAsync.valueOrNull;
-                final isOwner = team.createdBy == userId;
-
-                return Column(
-                  children: [
-                    Expanded(
-                      child: SingleChildScrollView(
-                        padding: const EdgeInsets.all(32),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Title & Tags
-                            Text(
-                              team.name,
-                              style: GoogleFonts.poppins(fontSize: 30, fontWeight: FontWeight.w500, color: AppColors.textPrimary),
-                            ),
-                            const SizedBox(height: 12),
-                             if (team.tags.isNotEmpty)
-                               Wrap(
-                                 spacing: 8,
-                                 runSpacing: 8,
-                                 children: team.tags.map((t) => Container(
-                                   padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 4),
-                                   child: Text(
-                                     '# $t', 
-                                     style: GoogleFonts.poppins(
-                                       fontSize: 14, 
-                                       color: _getTagColor(t), 
-                                       fontWeight: FontWeight.w500
-                                     ),
-                                   ),
-                                 )).toList(),
-                               ),
-                            const SizedBox(height: 32),
-                            
-                            // Detail Section
-                            Text('Detail', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w500, color: AppColors.slate700)),
-                            const SizedBox(height: 16),
-                             _InfoRow(label: 'Joined team', value: team.memberCountDisplay, valueColor: const Color(0xFF9E77ED)),
-                             const SizedBox(height: 12),
-                             _InfoRow(label: 'Competition time', value: '4 Maret 2026 - 10 Maret 2026', valueColor: const Color(0xFF9E77ED)),
-                            
-                            const SizedBox(height: 32),
-                            
-                            // Description Section
-                            Text('Deskripsi', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w500, color: AppColors.slate700)),
-                            const SizedBox(height: 12),
-                            Text(
-                              team.description ?? '',
-                              style: GoogleFonts.poppins(fontSize: 14, color: AppColors.textSecondary, height: 1.6),
-                            ),
-                            
-                            const SizedBox(height: 32),
-                            
-                            // Requirements Section
-                            Text('Requirements', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w500, color: AppColors.slate700)),
-                            const SizedBox(height: 12),
-                            ..._buildRequirements(team.requirements),
-                            
-                            if (isOwner) ...[
-                              const SizedBox(height: 32),
-                              const Divider(color: AppColors.divider),
-                              const SizedBox(height: 32),
-                              
-                              // Applicants Section
-                              _buildApplicantsSection(context, ref, team),
-                              
-                              const SizedBox(height: 32),
-                              
-                              // Joined Members Section
-                              _buildJoinedSection(team),
-                            ],
-                          ],
-                        ),
-                      ),
-                    ),
-                    // Action Footer (Only for Non-Owners)
-                    if (!isOwner)
-                      Container(
-                        padding: const EdgeInsets.all(32),
-                        decoration: const BoxDecoration(
-                          border: Border(top: BorderSide(color: AppColors.divider)),
-                        ),
-                        child: SizedBox(
-                          width: double.infinity,
-                          height: 56,
-                          child: status == 'pending'
-                            ? OutlinedButton(
-                                onPressed: () => _cancelApplication(context, ref),
-                                style: OutlinedButton.styleFrom(
-                                  side: const BorderSide(color: AppColors.error),
-                                  foregroundColor: AppColors.error,
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                ),
-                                child: const Text('Cancel Application'),
-                              )
-                            : ElevatedButton(
-                                onPressed: (status == null || status == 'none') 
-                                    ? () => _apply(context, ref) 
-                                    : null,
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.primary,
-                                  foregroundColor: Colors.white,
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                  elevation: 0,
-                                ),
-                                child: Text(
-                                  status == 'accepted' ? 'Already in Team' : 'Join Team',
-                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                                ),
-                              ),
-                        ),
-                      ),
-                  ],
-                );
-              },
+              data: (team) => _buildContent(context, ref, team, statusAsync, userId),
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (e, _) => Center(child: Text('Error: $e')),
             ),
@@ -204,14 +157,93 @@ class TeamDetailSidebar extends ConsumerWidget {
     );
   }
 
-   Color _getTagColor(String tag) {
-     final t = tag.toLowerCase();
-     if (t.contains('gemastik')) return const Color(0xFFF97316);
-     if (t.contains('mobile-developer')) return const Color(0xFF9E77ED);
-     if (t.contains('flutter')) return const Color(0xFF0EA5E9);
-     if (t.contains('mahasiswa')) return const Color(0xFFF43F5E);
-     return AppColors.primary;
-   }
+  // ─── Shared Content Section ───
+  Widget _buildContent(BuildContext context, WidgetRef ref, dynamic team, AsyncValue<dynamic> statusAsync, String? userId) {
+    if (team == null) return const Center(child: Text('Team not found'));
+    final status = statusAsync.valueOrNull;
+    final isOwner = team.createdBy == userId;
+
+    return Column(
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(), // Important for RefreshIndicator
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(team.name, style: GoogleFonts.poppins(fontSize: 30, fontWeight: FontWeight.w500, color: AppColors.textPrimary)),
+                const SizedBox(height: 12),
+                if (team.tags.isNotEmpty)
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: team.tags.map<Widget>((t) => Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 4),
+                      child: Text('# $t', style: GoogleFonts.poppins(fontSize: 14, color: AppColors.primary, fontWeight: FontWeight.w500)),
+                    )).toList(),
+                  ),
+                const SizedBox(height: 32),
+                Text('Detail', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w500, color: AppColors.slate700)),
+                const SizedBox(height: 16),
+                _InfoRow(label: 'Joined team', value: team.memberCountDisplay, valueColor: AppColors.primary),
+                const SizedBox(height: 12),
+                const _InfoRow(label: 'Competition time', value: '4 Maret 2026 - 10 Maret 2026', valueColor: AppColors.primary),
+                const SizedBox(height: 32),
+                Text('Deskripsi', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w500, color: AppColors.slate700)),
+                const SizedBox(height: 12),
+                Text(team.description ?? '', style: GoogleFonts.poppins(fontSize: 14, color: AppColors.textSecondary, height: 1.6)),
+                const SizedBox(height: 32),
+                Text('Requirements', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w500, color: AppColors.slate700)),
+                const SizedBox(height: 12),
+                ..._buildRequirements(team.requirements),
+                if (isOwner) ...[
+                  const SizedBox(height: 32),
+                  const Divider(color: AppColors.divider),
+                  const SizedBox(height: 32),
+                  _buildApplicantsSection(context, ref, team),
+                  const SizedBox(height: 32),
+                  _buildJoinedSection(team),
+                ],
+              ],
+            ),
+          ),
+        ),
+        if (!isOwner)
+          Container(
+            padding: const EdgeInsets.all(32),
+            decoration: const BoxDecoration(border: Border(top: BorderSide(color: AppColors.divider))),
+            child: SizedBox(
+              width: double.infinity,
+              height: 56,
+              child: status == 'pending'
+                  ? OutlinedButton(
+                      onPressed: () => _cancelApplication(context, ref),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: AppColors.error),
+                        foregroundColor: AppColors.error,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      child: const Text('Cancel Application'),
+                    )
+                  : ElevatedButton(
+                      onPressed: (status == null || status == 'none') ? () => _apply(context, ref) : null,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        elevation: 0,
+                      ),
+                      child: Text(
+                        status == 'accepted' ? 'Already in Team' : 'Join Team',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                      ),
+                    ),
+            ),
+          ),
+      ],
+    );
+  }
 
   List<Widget> _buildRequirements(String? requirements) {
     if (requirements == null || requirements.isEmpty) return [];
@@ -273,13 +305,9 @@ class TeamDetailSidebar extends ConsumerWidget {
       await ref.read(teamsServiceProvider).applyToTeam(teamId);
       ref.invalidate(userTeamStatusProvider(teamId));
       ref.invalidate(teamDetailProvider(teamId));
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Berhasil mendaftar ke tim!')));
-      }
+      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Berhasil mendaftar ke tim!')));
     } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal mendaftar: $e')));
-      }
+      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal mendaftar: $e')));
     }
   }
 
@@ -306,6 +334,7 @@ class TeamDetailSidebar extends ConsumerWidget {
         ref.invalidate(myTeamsProvider);
         if (context.mounted) {
           Navigator.pop(context);
+          ref.read(sidePopupProvider.notifier).hide();
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Team disbanded successfully.')));
         }
       } catch (e) {
@@ -339,6 +368,7 @@ class TeamDetailSidebar extends ConsumerWidget {
         ref.invalidate(teamDetailProvider(teamId));
         if (context.mounted) {
           Navigator.pop(context);
+          ref.read(sidePopupProvider.notifier).hide();
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('You have left the team.')));
         }
       } catch (e) {
@@ -366,9 +396,15 @@ class _ApplicantCard extends ConsumerWidget {
       child: Row(
         children: [
           CircleAvatar(
-            radius: 26,
+            key: ValueKey(member.profile?.avatarUrl),
+            radius: 20, 
             backgroundColor: AppColors.inputFill,
-            child: const Icon(Icons.person, color: AppColors.textMuted),
+            backgroundImage: member.profile?.avatarUrl != null 
+                ? NetworkImage(member.profile!.avatarUrl!) 
+                : null,
+            child: member.profile?.avatarUrl == null 
+                ? const Icon(Icons.person, color: AppColors.textMuted, size: 20) 
+                : null,
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -388,6 +424,7 @@ class _ApplicantCard extends ConsumerWidget {
                 onPressed: () async {
                   await ref.read(teamsServiceProvider).acceptMember(teamId, member.userId);
                   ref.invalidate(teamDetailProvider(teamId));
+                  ref.invalidate(myTeamsProvider);
                 },
               ),
               const SizedBox(width: 8),
@@ -422,17 +459,13 @@ class _MemberCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          CircleAvatar(
-            radius: 26,
-            backgroundColor: AppColors.inputFill,
-            child: const Icon(Icons.person, color: AppColors.textMuted),
-          ),
+          const CircleAvatar(radius: 20, backgroundColor: AppColors.inputFill, child: Icon(Icons.person, color: AppColors.textMuted, size: 20)),
           const SizedBox(width: 12),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(member.displayName, style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w400, color: AppColors.textPrimary)),
-              Text('Recently', style: GoogleFonts.poppins(fontSize: 12, color: AppColors.textMuted)),
+              Text('Member', style: GoogleFonts.poppins(fontSize: 12, color: AppColors.textMuted)),
             ],
           ),
         ],
@@ -454,7 +487,7 @@ class _ActionBtn extends StatelessWidget {
         backgroundColor: Colors.white,
         side: const BorderSide(color: Color(0xFFE9D7FE)),
         foregroundColor: const Color(0xFF42307D),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
         textStyle: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.w500),
       ),
@@ -475,14 +508,7 @@ class _InfoRow extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(label, style: GoogleFonts.poppins(fontSize: 14, color: AppColors.slate500)),
-        const SizedBox(width: 8),
-        Flexible(
-          child: Text(
-            value, 
-            style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w500, color: valueColor ?? AppColors.textPrimary),
-            textAlign: TextAlign.right,
-          ),
-        ),
+        Text(value, style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w500, color: valueColor ?? AppColors.textPrimary)),
       ],
     );
   }

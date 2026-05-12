@@ -25,6 +25,7 @@ class _WebTeamsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final myTeams = ref.watch(myTeamsProvider);
+    final pendingTeams = ref.watch(pendingTeamsProvider);
     final available = ref.watch(availableTeamsProvider);
 
     return Scaffold(
@@ -33,6 +34,7 @@ class _WebTeamsScreen extends ConsumerWidget {
         color: AppColors.primary,
         onRefresh: () async {
           ref.invalidate(myTeamsProvider);
+          ref.invalidate(pendingTeamsProvider);
           ref.invalidate(availableTeamsProvider);
         },
         child: CustomScrollView(
@@ -40,7 +42,7 @@ class _WebTeamsScreen extends ConsumerWidget {
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-                child: Text('Teams', style: GoogleFonts.inter(fontSize: 22, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+                child: Text('Joined Teams', style: GoogleFonts.inter(fontSize: 22, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
               ),
             ),
             myTeams.when(
@@ -66,6 +68,36 @@ class _WebTeamsScreen extends ConsumerWidget {
               loading: () => const SliverToBoxAdapter(child: Center(child: Padding(padding: EdgeInsets.all(32), child: CircularProgressIndicator(color: AppColors.primary)))),
               error: (e, _) => SliverToBoxAdapter(child: Center(child: Text('Error: $e'))),
             ),
+
+            // ── Requested Teams Section ──
+            pendingTeams.when(
+              data: (teams) {
+                if (teams.isEmpty) return const SliverToBoxAdapter(child: SizedBox.shrink());
+                return SliverToBoxAdapter(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 24, 16, 12),
+                        child: Text('Requested Teams', style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Column(
+                          children: teams.map((t) => Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: _WebAvailableTeamCard(team: t),
+                          )).toList(),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+              loading: () => const SliverToBoxAdapter(child: SizedBox.shrink()),
+              error: (_, _) => const SliverToBoxAdapter(child: SizedBox.shrink()),
+            ),
+
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(16, 24, 16, 12),
@@ -74,7 +106,7 @@ class _WebTeamsScreen extends ConsumerWidget {
                   children: [
                     Text('List Available Teams', style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
                     GestureDetector(
-                      onTap: () => context.push('/create-team'),
+                      onTap: () => ref.read(sidePopupProvider.notifier).show(SidePopupType.createTeam),
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
@@ -133,6 +165,7 @@ class _MobileTeamsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final myTeams = ref.watch(myTeamsProvider);
+    final pendingTeams = ref.watch(pendingTeamsProvider);
     final available = ref.watch(availableTeamsProvider);
     final userId = Supabase.instance.client.auth.currentUser?.id;
 
@@ -142,9 +175,11 @@ class _MobileTeamsScreen extends ConsumerWidget {
         color: AppColors.primary,
         onRefresh: () async {
           ref.invalidate(myTeamsProvider);
+          ref.invalidate(pendingTeamsProvider);
           ref.invalidate(availableTeamsProvider);
         },
         child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
           child: SafeArea(
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -156,7 +191,6 @@ class _MobileTeamsScreen extends ConsumerWidget {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text('Teams', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600, color: const Color(0xFF344054))),
-                      Text('see all', style: GoogleFonts.poppins(fontSize: 14, color: AppColors.primary, fontWeight: FontWeight.w500)),
                     ],
                   ),
                   const SizedBox(height: 16),
@@ -167,7 +201,7 @@ class _MobileTeamsScreen extends ConsumerWidget {
                         return _MobileEmptyTeams();
                       }
                       return Column(
-                        children: teams.take(2).map((team) => Padding(
+                        children: teams.map((team) => Padding(
                           padding: const EdgeInsets.only(bottom: 12),
                           child: _MobileMyTeamCard(team: team, userId: userId ?? ''),
                         )).toList(),
@@ -178,6 +212,27 @@ class _MobileTeamsScreen extends ConsumerWidget {
                   ),
 
                   const SizedBox(height: 24),
+
+                  // ── Requested Teams Section ──
+                  pendingTeams.when(
+                    data: (teams) {
+                      if (teams.isEmpty) return const SizedBox.shrink();
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Requested Teams', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600, color: const Color(0xFF344054))),
+                          const SizedBox(height: 16),
+                          ...teams.map((team) => Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: _MobileAvailableCard(team: team),
+                          )),
+                          const SizedBox(height: 24),
+                        ],
+                      );
+                    },
+                    loading: () => const SizedBox.shrink(),
+                    error: (_, _) => const SizedBox.shrink(),
+                  ),
 
                   // ── Available Teams Header ──
                   Row(
@@ -331,7 +386,7 @@ class _MobileMyTeamCard extends ConsumerWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                _MobileAvatarStack(count: team.currentMembers),
+                _MobileAvatarStack(members: team.members ?? []),
                 Text('ongoing', style: GoogleFonts.poppins(fontSize: 13, color: statusColor, fontWeight: FontWeight.w500)),
               ],
             ),
@@ -401,12 +456,13 @@ class _MobileAvailableCard extends ConsumerWidget {
 }
 
 class _MobileAvatarStack extends StatelessWidget {
-  final int count;
-  const _MobileAvatarStack({required this.count});
+  final List<TeamMember> members;
+  const _MobileAvatarStack({required this.members});
 
   @override
   Widget build(BuildContext context) {
-    final displayCount = count > 4 ? 4 : count;
+    final acceptedMembers = members.where((m) => m.status == 'accepted').toList();
+    final displayCount = acceptedMembers.length > 4 ? 4 : acceptedMembers.length;
     if (displayCount == 0) return const SizedBox.shrink();
 
     return SizedBox(
@@ -415,19 +471,36 @@ class _MobileAvatarStack extends StatelessWidget {
       child: Stack(
         children: List.generate(
           displayCount,
-          (index) => Positioned(
-            left: index * 20.0,
-            child: Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 2),
-                color: AppColors.inputFill,
+          (index) {
+            final member = acceptedMembers[index];
+            return Positioned(
+              left: index * 20.0,
+              child: Container(
+                key: ValueKey(member.profile?.avatarUrl),
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 2),
+                  color: AppColors.inputFill,
+                  image: member.profile?.avatarUrl != null
+                      ? DecorationImage(
+                          image: NetworkImage(member.profile!.avatarUrl!),
+                          fit: BoxFit.cover,
+                        )
+                      : null,
+                ),
+                child: member.profile?.avatarUrl == null
+                    ? Center(
+                        child: Text(
+                          member.initials,
+                          style: GoogleFonts.poppins(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.textSecondary),
+                        ),
+                      )
+                    : null,
               ),
-              child: const Icon(Icons.person, size: 16, color: Colors.grey),
-            ),
-          ),
+            );
+          },
         ),
       ),
     );
@@ -469,8 +542,9 @@ class _WebMyTeamCard extends StatelessWidget {
             Text(team.description ?? '', style: GoogleFonts.inter(fontSize: 13, color: AppColors.textSecondary), maxLines: 2, overflow: TextOverflow.ellipsis),
             const SizedBox(height: 12),
             Row(
-              mainAxisAlignment: MainAxisAlignment.end,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
+                _MobileAvatarStack(members: team.members ?? []),
                 Text('ongoing', style: GoogleFonts.inter(fontSize: 13, color: AppColors.success, fontWeight: FontWeight.w500)),
               ],
             ),
@@ -525,6 +599,8 @@ class _WebAvailableTeamCard extends StatelessWidget {
                 if (team.tags.length > 3)
                   Text('${team.tags.length - 3}+', style: GoogleFonts.inter(fontSize: 12, color: AppColors.textMuted)),
                 const Spacer(),
+                _MobileAvatarStack(members: team.members ?? []),
+                const SizedBox(width: 12),
                 Text(timeAgo, style: GoogleFonts.inter(fontSize: 12, color: AppColors.textMuted)),
               ],
             ),

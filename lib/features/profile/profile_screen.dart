@@ -116,10 +116,13 @@ class _WebProfileScreen extends ConsumerWidget {
                 child: CircleAvatar(
                   radius: 60,
                   backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-                  child: Text(
-                    p?.initials ?? 'U',
-                    style: GoogleFonts.poppins(fontSize: 40, fontWeight: FontWeight.bold, color: AppColors.primary),
-                  ),
+                  backgroundImage: p?.avatarUrl != null ? NetworkImage(p!.avatarUrl!) : null,
+                  child: p?.avatarUrl == null
+                      ? Text(
+                          p?.initials ?? 'U',
+                          style: GoogleFonts.poppins(fontSize: 40, fontWeight: FontWeight.bold, color: AppColors.primary),
+                        )
+                      : null,
                 ),
               ),
               const SizedBox(width: 24),
@@ -318,11 +321,14 @@ class _MobileProfileScreen extends ConsumerWidget {
                       ),
                       child: CircleAvatar(
                         radius: 40,
-                        backgroundColor: AppColors.primary.withValues(alpha: 0.15),
-                        child: Text(
-                          p?.initials ?? 'U',
-                          style: GoogleFonts.poppins(fontSize: 28, fontWeight: FontWeight.bold, color: AppColors.primary),
-                        ),
+                        backgroundColor: Colors.white,
+                        backgroundImage: p?.avatarUrl != null ? NetworkImage(p!.avatarUrl!) : null,
+                        child: p?.avatarUrl == null
+                            ? Text(
+                                p?.initials ?? 'U',
+                                style: GoogleFonts.poppins(fontSize: 28, fontWeight: FontWeight.bold, color: AppColors.primary),
+                              )
+                            : null,
                       ),
                     ),
                   ),
