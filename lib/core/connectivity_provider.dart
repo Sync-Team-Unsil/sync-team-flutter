@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/foundation.dart';
 
 enum ConnectivityStatus { isConnected, isDisconnected, notDetermined }
 
@@ -24,7 +25,7 @@ class ConnectivityStatusNotifier extends StateNotifier<ConnectivityStatus> {
 
   void _updateStatus(List<ConnectivityResult> results) {
     // Debug log to help identify the issue
-    print('Connectivity changed: $results');
+    debugPrint('Connectivity changed: $results');
     
     if (results.isEmpty || results.contains(ConnectivityResult.none)) {
       state = ConnectivityStatus.isDisconnected;

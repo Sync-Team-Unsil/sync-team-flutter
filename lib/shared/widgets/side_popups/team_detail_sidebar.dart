@@ -202,9 +202,9 @@ class TeamDetailSidebar extends ConsumerWidget {
                   const Divider(color: AppColors.divider),
                   const SizedBox(height: 32),
                   _buildApplicantsSection(context, ref, team),
-                  const SizedBox(height: 32),
-                  _buildJoinedSection(team),
                 ],
+                const SizedBox(height: 32),
+                _buildJoinedSection(team),
               ],
             ),
           ),
@@ -403,7 +403,12 @@ class _ApplicantCard extends ConsumerWidget {
                 ? NetworkImage(member.profile!.avatarUrl!) 
                 : null,
             child: member.profile?.avatarUrl == null 
-                ? const Icon(Icons.person, color: AppColors.textMuted, size: 20) 
+                ? Center(
+                    child: Text(
+                      member.initials,
+                      style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.textSecondary),
+                    ),
+                  ) 
                 : null,
           ),
           const SizedBox(width: 12),
@@ -459,7 +464,22 @@ class _MemberCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const CircleAvatar(radius: 20, backgroundColor: AppColors.inputFill, child: Icon(Icons.person, color: AppColors.textMuted, size: 20)),
+          CircleAvatar(
+            key: ValueKey(member.profile?.avatarUrl),
+            radius: 20, 
+            backgroundColor: AppColors.inputFill,
+            backgroundImage: member.profile?.avatarUrl != null 
+                ? NetworkImage(member.profile!.avatarUrl!) 
+                : null,
+            child: member.profile?.avatarUrl == null 
+                ? Center(
+                    child: Text(
+                      member.initials,
+                      style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.textSecondary),
+                    ),
+                  )
+                : null,
+          ),
           const SizedBox(width: 12),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,

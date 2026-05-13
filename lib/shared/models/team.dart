@@ -68,17 +68,16 @@ class TeamMember {
   });
 
   factory TeamMember.fromJson(Map<String, dynamic> json) {
+    // Handle both plural and singular profile keys from Supabase response
+    final profileData = json['profiles'] ?? json['profile'];
+    
     return TeamMember(
       id: json['id'],
       teamId: json['team_id'],
       userId: json['user_id'],
       status: json['status'],
       joinedAt: DateTime.parse(json['joined_at'] ?? json['created_at'] ?? DateTime.now().toIso8601String()),
-      profile: (json['profiles'] != null) 
-          ? Profile.fromJson(json['profiles']) 
-          : (json['profile'] != null)
-              ? Profile.fromJson(json['profile'])
-              : null,
+      profile: profileData != null ? Profile.fromJson(profileData) : null,
     );
   }
 

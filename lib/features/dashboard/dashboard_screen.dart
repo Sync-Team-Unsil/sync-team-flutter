@@ -440,7 +440,7 @@ class _MobileJoinedTeamCard extends ConsumerWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                _AvatarStack(count: team.currentMembers),
+                _AvatarStack(members: team.members ?? []),
                 Text('ongoing', style: GoogleFonts.poppins(fontSize: 13, color: statusColor, fontWeight: FontWeight.w500)),
               ],
             ),
@@ -633,7 +633,7 @@ class _WebJoinedTeamCard extends ConsumerWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                _AvatarStack(count: team.currentMembers),
+                _AvatarStack(members: team.members ?? []),
                 Text('ongoing', style: GoogleFonts.poppins(fontSize: 14, color: statusColor)),
               ],
             ),
@@ -704,12 +704,13 @@ class _WebAvailableTeamCard extends ConsumerWidget {
 // SHARED WIDGETS
 // ═══════════════════════════════════════════════════════════
 class _AvatarStack extends StatelessWidget {
-  final int count;
-  const _AvatarStack({required this.count});
+  final List<TeamMember> members;
+  const _AvatarStack({required this.members});
 
   @override
   Widget build(BuildContext context) {
-    final displayCount = count > 4 ? 4 : count;
+    final acceptedMembers = members.where((m) => m.status == 'accepted').toList();
+    final displayCount = acceptedMembers.length > 4 ? 4 : acceptedMembers.length;
     if (displayCount == 0) return const SizedBox.shrink();
 
     return SizedBox(
@@ -718,19 +719,39 @@ class _AvatarStack extends StatelessWidget {
       child: Stack(
         children: List.generate(
           displayCount,
-          (index) => Positioned(
-            left: index * 22.0,
-            child: Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 2),
-                color: AppColors.inputFill,
+          (index) {
+            final member = acceptedMembers[index];
+            return Positioned(
+              left: index * 22.0,
+              child: Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 2),
+                  color: AppColors.inputFill,
+                  image: member.profile?.avatarUrl != null
+                      ? DecorationImage(
+                          image: NetworkImage(member.profile!.avatarUrl!),
+                          fit: BoxFit.cover,
+                        )
+                      : null,
+                ),
+                child: member.profile?.avatarUrl == null
+                    ? Center(
+                        child: Text(
+                          member.initials,
+                          style: GoogleFonts.poppins(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      )
+                    : null,
               ),
-              child: const Icon(Icons.person, size: 18, color: Colors.grey),
-            ),
-          ),
+            );
+          },
         ),
       ),
     );

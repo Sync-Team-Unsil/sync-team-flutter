@@ -239,7 +239,12 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
                                       ? NetworkImage(ref.watch(profileProvider).valueOrNull!.avatarUrl!)
                                       : null,
                                   child: ref.watch(profileProvider).valueOrNull?.avatarUrl == null
-                                      ? const Icon(Icons.person, size: 18, color: AppColors.textSecondary)
+                                      ? Center(
+                                          child: Text(
+                                            ref.watch(profileProvider).valueOrNull?.initials ?? 'U',
+                                            style: GoogleFonts.poppins(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.textSecondary),
+                                          ),
+                                        )
                                       : null,
                                 ),
                               ],

@@ -124,10 +124,17 @@ class TeamDetailScreen extends ConsumerWidget {
                     ...pending.map((m) => _ApplicantCard(member: m, teamId: team.id)),
                   
                   const SizedBox(height: 32),
-                  Text('Current Members (${accepted.length})', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
-                  const SizedBox(height: 12),
+                ],
+                
+                Text('Current Members (${accepted.length})', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+                const SizedBox(height: 12),
+                if (accepted.isEmpty)
+                  const Text('No members yet')
+                else
                   ...accepted.map((m) => _MemberItem(member: m)),
-                ] else ...[
+
+                if (!isOwner) ...[
+                  const SizedBox(height: 32),
                   SizedBox(
                     width: double.infinity,
                     height: 56,
@@ -246,7 +253,12 @@ class _ApplicantCard extends ConsumerWidget {
         children: [
           CircleAvatar(
             backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-            child: Text(member.initials, style: const TextStyle(color: AppColors.primary)),
+            backgroundImage: member.profile?.avatarUrl != null 
+                ? NetworkImage(member.profile!.avatarUrl!) 
+                : null,
+            child: member.profile?.avatarUrl == null
+                ? Text(member.initials, style: const TextStyle(color: AppColors.primary))
+                : null,
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -281,7 +293,12 @@ class _MemberItem extends StatelessWidget {
       contentPadding: EdgeInsets.zero,
       leading: CircleAvatar(
         backgroundColor: AppColors.inputFill,
-        child: Text(member.initials, style: const TextStyle(color: AppColors.textPrimary)),
+        backgroundImage: member.profile?.avatarUrl != null 
+            ? NetworkImage(member.profile!.avatarUrl!) 
+            : null,
+        child: member.profile?.avatarUrl == null
+            ? Text(member.initials, style: const TextStyle(color: AppColors.textPrimary))
+            : null,
       ),
       title: Text(member.displayName, style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w500)),
       subtitle: Text('Member', style: GoogleFonts.poppins(fontSize: 12, color: AppColors.textMuted)),
